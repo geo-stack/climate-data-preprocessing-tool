@@ -511,8 +511,9 @@ class WeatherStationBrowser(QWidget):
         """
         if self.stn_finder_worker.data is not None:
             stnlist = self.stn_finder_worker.get_stationlist(
-                    prov=self.prov, prox=self.prox,
-                    yrange=(self.year_min, self.year_max, self.nbr_of_years))
+                prov=self.prov,
+                prox=self.prox,
+                yrange=(self.year_min, self.year_max, self.nbr_of_years))
             self.station_table.populate_table(stnlist)
 
     # ---- Download weather data
