@@ -1,0 +1,11 @@
+appconfigs
+pyqt5 == 5.12.*
+qtawesome == 0.7.*
+xlsxwriter
+xlrd
+xlwt
+cython>=0.25.2
+numpy>1.14
+matplotlib == 3.1.*
+requests
+pandas
