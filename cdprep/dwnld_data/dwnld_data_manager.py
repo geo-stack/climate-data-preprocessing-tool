@@ -11,22 +11,26 @@
 from datetime import datetime
 import sys
 import os
-from time import sleep
+import os.path as osp
+from time import gmtime, sleep
+from urllib.request import URLError, urlopen
 
 # ---- Third party imports
+import numpy as np
+import pandas as pd
 from PyQt5.QtCore import pyqtSignal as QSignal
 from PyQt5.QtCore import pyqtSlot as QSlot
-from PyQt5.QtCore import Qt, QPoint, QThread, QSize
+from PyQt5.QtCore import Qt, QPoint, QThread, QSize, QObject
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QDoubleSpinBox, QComboBox, QFrame, QGridLayout, QSpinBox,
     QPushButton, QDesktopWidget, QApplication, QFileDialog, QGroupBox, QStyle)
 
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
-from cdprep.utils.qthelpers import create_separator
 from cdprep.widgets.waitingspinner import QWaitingSpinner
-from cdprep.weather_stationlist import WeatherSationView
-from cdprep.weather_station_finder import (WeatherStationFinder, PROV_NAME_ABB)
+from cdprep.dwnld_data.weather_stationlist import WeatherSationView
+from cdprep.dwnld_data.weather_station_finder import (
+    WeatherStationFinder, PROV_NAME_ABB)
 
 
 class WaitSpinnerBar(QWidget):
@@ -248,7 +252,7 @@ class WeatherStationBrowser(QWidget):
         self.year_widg = QGroupBox("Data Availability filter")
         self.year_widg.setLayout(grid)
 
-        # ---- Toolbar
+        # Setup the toolbar.
         self.btn_addSta = btn_addSta = QPushButton('Add')
         btn_addSta.setIcon(get_icon('add2list'))
         btn_addSta.setIconSize(get_iconsize('small'))
@@ -262,7 +266,9 @@ class WeatherStationBrowser(QWidget):
         btn_save.setToolTip('Save the list of selected stations to a file.')
         btn_save.clicked.connect(self.btn_save_isClicked)
 
-        self.btn_fetch = btn_fetch = QPushButton('Fetch')
+        btn_download = QPushButton('Download')
+
+        self.btn_fetch = btn_fetch = QPushButton('Refresh')
         btn_fetch.setIcon(get_icon('refresh'))
         btn_fetch.setIconSize(get_iconsize('small'))
         btn_fetch.setToolTip("Updates the climate station database by"
@@ -272,7 +278,8 @@ class WeatherStationBrowser(QWidget):
         toolbar_grid = QGridLayout()
         toolbar_widg = QWidget()
 
-        for col, btn in enumerate([btn_addSta, btn_save, btn_fetch]):
+        for col, btn in enumerate([btn_addSta, btn_save, btn_fetch,
+                                   btn_download]):
             toolbar_grid.addWidget(btn, 0, col+1)
 
         toolbar_grid.setColumnStretch(toolbar_grid.columnCount(), 100)
@@ -301,16 +308,10 @@ class WeatherStationBrowser(QWidget):
 
         # Create the main grid.
         main_layout = QGridLayout(self)
-
         main_layout.addWidget(left_panel, 0, 0)
-        main_layout.addWidget(self.station_table, 0, 2)
-        main_layout.addWidget(self.waitspinnerbar, 0, 2)
-
-        main_layout.setContentsMargins(10, 10, 10, 10)  # (L,T,R,B)
-        main_layout.setRowStretch(0, 100)
-        main_layout.setHorizontalSpacing(15)
-        main_layout.setVerticalSpacing(5)
-        main_layout.setColumnStretch(col, 100)
+        main_layout.addWidget(self.station_table, 0, 1)
+        main_layout.addWidget(self.waitspinnerbar, 0, 1)
+        main_layout.setColumnStretch(1, 100)
 
     @property
     def stationlist(self):
@@ -506,6 +507,165 @@ class WeatherStationBrowser(QWidget):
                     prov=self.prov, prox=self.prox,
                     yrange=(self.year_min, self.year_max, self.nbr_of_years))
             self.station_table.populate_table(stnlist)
+
+    # ---- Download weather data
+    def download_checked_stations_data(self):
+        pass
+
+
+class RawDataDownloader(QObject):
+    """
+    This class is used to download the raw data files from
+    www.climate.weather.gc.ca and saves them automatically in
+    <Project_directory>/Meteo/Raw/<station_name (Climate ID)>.
+
+    ERRFLAG = Flag for the download of files - np.arrays
+                  0 -> File downloaded successfully
+                  1 -> Problem downloading the file
+                  3 -> File NOT downloaded because it already exists
+    """
+
+    sig_download_finished = QSignal(list)
+    sig_update_pbar = QSignal(int)
+    ConsoleSignal = QSignal(str)
+
+    def __init__(self):
+        super(RawDataDownloader, self).__init__(parent=None)
+
+        self.__stop_dwnld = False
+
+        self.ERRFLAG = []
+
+        # These values need to be pushed from the parent.
+
+        self.dirname = []    # Directory where the downloaded files are saved
+        self.stationID = []
+        # Unique identifier for the station used for downloading the
+        # data from the server
+        self.climateID = []  # Unique identifier for the station
+        self.yr_start = []
+        self.yr_end = []
+        self.StaName = []  # Common name given to the station (not unique)
+
+    def stop_download(self):
+        self.__stop_dwnld = True
+
+    def download_data(self):
+        """
+        Download raw data files on a yearly basis from yr_start to yr_end.
+        """
+
+        staID = self.stationID
+        yr_start = int(self.yr_start)
+        yr_end = int(self.yr_end)
+        StaName = self.StaName
+        climateID = self.climateID
+
+        self.ERRFLAG = np.ones(yr_end - yr_start + 1)
+
+        print("Downloading data for station %s" % StaName)
+        self.ConsoleSignal.emit(
+            '''<font color=black>Downloading data from </font>
+               <font color=blue>www.climate.weather.gc.ca</font>
+               <font color=black> for station %s</font>''' % StaName)
+        self.sig_update_pbar.emit(0)
+
+        StaName = StaName.replace('\\', '_')
+        StaName = StaName.replace('/', '_')
+        dirname = osp.join(self.dirname, '%s (%s)' % (StaName, climateID))
+        if not osp.exists(dirname):
+            os.makedirs(dirname)
+
+        # Data are downloaded on a yearly basis from yStart to yEnd
+        downloaded_raw_datafiles = []
+        for i, year in enumerate(range(yr_start, yr_end+1)):
+            if self.__stop_dwnld:
+                # Stop the downloading process.
+                self.__stop_dwnld = False
+                msg = "Downloading process for station %s stopped." % StaName
+                print(msg)
+                self.ConsoleSignal.emit("<font color=red>%s</font>" % msg)
+                return
+
+            # Define file and URL paths.
+            fname = os.path.join(
+                    dirname, "eng-daily-0101%s-1231%s.csv" % (year, year))
+            url = ('http://climate.weather.gc.ca/climate_data/' +
+                   'bulk_data_e.html?format=csv&stationID=' + str(staID) +
+                   '&Year=' + str(year) + '&Month=1&Day=1&timeframe=2' +
+                   '&submit=Download+Data')
+
+            # Download data for that year.
+            if osp.exists(fname):
+                # If the file was downloaded in the same year that of the data
+                # record, data will be downloaded again in case the data series
+                # was not complete.
+
+                # Get year of file last modification
+                myear = osp.getmtime(fname)
+                myear = gmtime(myear)[0]
+                if myear == year:
+                    self.ERRFLAG[i] = self.dwnldfile(url, fname)
+                else:
+                    self.ERRFLAG[i] = 3
+                    print('    %s: Raw data file already exists for year %d.' %
+                          (StaName, year))
+            else:
+                self.ERRFLAG[i] = self.dwnldfile(url, fname)
+                print('    %s: Downloading raw data file for year %d.' %
+                      (StaName, year))
+
+            # Update UI :
+
+            progress = (year - yr_start+1) / (yr_end+1 - yr_start) * 100
+            self.sig_update_pbar.emit(int(progress))
+
+            if self.ERRFLAG[i] == 1:                         # pragma: no cover
+                self.ConsoleSignal.emit(
+                    '''<font color=red>There was a problem downloading the
+                         data of station %s for year %d.
+                       </font>''' % (StaName, year))
+            elif self.ERRFLAG[i] == 0:
+                self.ConsoleSignal.emit(
+                    '''<font color=black>Weather data for station %s
+                         downloaded successfully for year %d.
+                       </font>''' % (StaName, year))
+                downloaded_raw_datafiles.append(fname)
+            elif self.ERRFLAG[i] == 3:
+                sleep(0.1)
+                self.ConsoleSignal.emit(
+                    '''<font color=green>A weather data file already existed
+                         for station %s for year %d. Downloading is skipped.
+                       </font>''' % (StaName, year))
+                downloaded_raw_datafiles.append(fname)
+
+        cmt = ("All raw  data files downloaded sucessfully for "
+               "station %s.") % StaName
+        print(cmt)
+        self.ConsoleSignal.emit('<font color=black>%s</font>' % cmt)
+
+        self.sig_update_pbar.emit(0)
+        self.sig_download_finished.emit(downloaded_raw_datafiles)
+        return downloaded_raw_datafiles
+
+    def dwnldfile(self, url, fname):
+        try:
+            ERRFLAG = 0
+            f = urlopen(url)
+
+            # Write downloaded content to local file.
+            with open(fname, 'wb') as local_file:
+                local_file.write(f.read())
+        except URLError as e:                                # pragma: no cover
+            ERRFLAG = 1
+            if hasattr(e, 'reason'):
+                print('Failed to reach a server.')
+                print('Reason: ', e.reason)
+            elif hasattr(e, 'code'):
+                print('The server couldn\'t fulfill the request.')
+                print('Error code: ', e.code)
+
+        return ERRFLAG
 
 
 # %% if __name__ == '__main__'

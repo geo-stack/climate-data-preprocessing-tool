@@ -26,7 +26,7 @@ from PyQt5.QtCore import pyqtSignal as QSignal
 # ---- Local imports
 from cdprep.config.main import CONFIG_DIR
 from cdprep.utils.maths import calc_dist_from_coord
-from cdprep.weather_stationlist import WeatherSationList
+from cdprep.dwnld_data.weather_stationlist import WeatherSationList
 DATABASE_FILEPATH = osp.join(CONFIG_DIR, 'climate_station_database.npy')
 MAX_FAILED_FETCH_TRY = 3
 PROV_NAME_ABB = [('ALBERTA', 'AB'),
