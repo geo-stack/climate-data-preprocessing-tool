@@ -263,11 +263,12 @@ class WeatherStationBrowser(QWidget):
 
         btn_save = QPushButton('Save')
         btn_save.setIcon(get_icon('save'))
-        btn_save.setIconSize(get_iconsize('small'))
         btn_save.setToolTip('Save the list of selected stations to a file.')
         btn_save.clicked.connect(self.btn_save_isClicked)
 
-        btn_download = QPushButton('Download')
+        self.btn_download = QPushButton('Download')
+        self.btn_download.setIcon(get_icon('download_data'))
+        self.btn_download.clicked.connect(self.start_download_process)
 
         self.btn_fetch = btn_fetch = QPushButton('Refresh')
         btn_fetch.setIcon(get_icon('refresh'))
@@ -280,7 +281,7 @@ class WeatherStationBrowser(QWidget):
         toolbar_widg = QWidget()
 
         for col, btn in enumerate([btn_addSta, btn_save, btn_fetch,
-                                   btn_download]):
+                                   self.btn_download]):
             toolbar_grid.addWidget(btn, 0, col+1)
 
         toolbar_grid.setColumnStretch(toolbar_grid.columnCount(), 100)
