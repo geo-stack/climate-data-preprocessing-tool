@@ -23,7 +23,8 @@ from PyQt5.QtCore import pyqtSlot as QSlot
 from PyQt5.QtCore import Qt, QPoint, QThread, QSize, QObject
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QDoubleSpinBox, QComboBox, QFrame, QGridLayout, QSpinBox,
-    QPushButton, QDesktopWidget, QApplication, QFileDialog, QGroupBox, QStyle)
+    QPushButton, QDesktopWidget, QApplication, QFileDialog, QGroupBox, QStyle,
+    QMessageBox, QProgressBar)
 
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
@@ -306,11 +307,17 @@ class WeatherStationBrowser(QWidget):
         left_panel_grid.setContentsMargins(0, 0, 0, 0)   # (L, T, R, B)
         left_panel.setLayout(left_panel_grid)
 
+        # Setup the progress bar.
+        self.progressbar = QProgressBar()
+        self.progressbar.setValue(0)
+        self.progressbar.hide()
+
         # Create the main grid.
         main_layout = QGridLayout(self)
         main_layout.addWidget(left_panel, 0, 0)
         main_layout.addWidget(self.station_table, 0, 1)
         main_layout.addWidget(self.waitspinnerbar, 0, 1)
+        main_layout.addWidget(self.progressbar, 1, 0, 1, 2)
         main_layout.setColumnStretch(1, 100)
 
     @property
