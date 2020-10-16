@@ -28,6 +28,8 @@ from PyQt5.QtWidgets import (
 
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
+from cdprep.config.ospath import (
+    get_select_file_dialog_dir, set_select_file_dialog_dir)
 from cdprep.widgets.waitingspinner import QWaitingSpinner
 from cdprep.dwnld_data.weather_stationlist import WeatherSationView
 from cdprep.dwnld_data.weather_station_finder import (
@@ -82,7 +84,7 @@ class WaitSpinnerBar(QWidget):
         super(WaitSpinnerBar, self).hide()
         self._spinner.stop()
 
-
+    sig_download_process_ended = QSignal()
 class WeatherStationBrowser(QWidget):
     """
     Widget that allows the user to browse and select ECCC climate stations.
@@ -107,6 +109,16 @@ class WeatherStationBrowser(QWidget):
         self.stn_finder_worker.sig_progress_msg.connect(
             self.waitspinnerbar.set_label)
         self.__initUI__()
+
+        # Setup the raw data downloader.
+        self._dwnld_stations_list = []
+        self.dwnld_thread = QThread()
+        self.dwnld_worker = RawDataDownloader()
+        self.dwnld_worker.moveToThread(self.dwnld_thread)
+
+        self.dwnld_worker.sig_download_finished.connect(
+            self.process_station_data)
+        self.dwnld_worker.sig_update_pbar.connect(self.progressbar.setValue)
 
         self.start_load_database()
 
@@ -518,8 +530,92 @@ class WeatherStationBrowser(QWidget):
             self.station_table.populate_table(stnlist)
 
     # ---- Download weather data
-    def download_checked_stations_data(self):
-        pass
+    def start_download_process(self):
+        """Start the downloading process of raw weather data files."""
+        # Grab the info of the weather stations that are selected.
+        rows = self.station_table.get_checked_rows()
+        self._dwnld_stations_list = self.station_table.get_content4rows(rows)
+        if len(self._dwnld_stations_list) == 0:
+            QMessageBox.warning(
+                self, 'Warning',
+                "No weather station currently selected.",
+                QMessageBox.Ok)
+            return
+
+        # Select the download folder.
+        dirname = QFileDialog().getExistingDirectory(
+            self, 'Choose Download Folder', get_select_file_dialog_dir())
+        if not dirname:
+            return
+        set_select_file_dialog_dir(dirname)
+
+        # Update the UI.
+        self.progressbar.show()
+        self.btn_download.setIcon(get_icon('stop'))
+
+        # Set thread working directory.
+        self.dwnld_worker.dirname = dirname
+
+        # Start downloading data.
+        self.download_next_station()
+
+    def stop_download_process(self):
+        print('Stopping the download process...')
+        self.btn_download.setIcon(get_icon('download'))
+        self.dwnld_worker.stop_download()
+        self.wait_for_thread_to_quit()
+        self.btn_download.setEnabled(True)
+        self.sig_download_process_ended.emit()
+        print('Download process stopped.')
+
+    def download_next_station(self):
+        self.wait_for_thread_to_quit()
+        try:
+            dwnld_station = self._dwnld_stations_list.pop(0)
+        except IndexError:
+            # There is no more data to download.
+            print('Raw weather data downloaded for all selected stations.')
+            self.btn_download.setIcon(get_icon('download'))
+            self.progressbar.hide()
+            self.sig_download_process_ended.emit()
+            return
+
+        # Set worker attributes.
+        self.dwnld_worker.StaName = dwnld_station[0]
+        self.dwnld_worker.stationID = dwnld_station[1]
+        self.dwnld_worker.yr_start = dwnld_station[2]
+        self.dwnld_worker.yr_end = dwnld_station[3]
+        self.dwnld_worker.climateID = dwnld_station[5]
+
+        # Highlight the row of the next station to download data from.
+        self.station_table.selectRow(
+            self.station_table.get_row_from_climateid(dwnld_station[5]))
+
+        # Start the downloading process.
+        try:
+            self.dwnld_thread.started.disconnect(
+                self.dwnld_worker.download_data)
+        except TypeError:
+            # The method self.dwnld_worker.download_data is not connected.
+            pass
+        finally:
+            self.dwnld_thread.started.connect(self.dwnld_worker.download_data)
+            self.dwnld_thread.start()
+
+    def wait_for_thread_to_quit(self):
+        self.dwnld_thread.quit()
+        waittime = 0
+        while self.dwnld_thread.isRunning():
+            print('Waiting for the downloading thread to close')
+            sleep(0.1)
+            waittime += 0.1
+            if waittime > 15:
+                print("Unable to close the weather data dowloader thread.")
+                return
+
+    def process_station_data(self, file_list=None):
+        print(file_list)
+        self.download_next_station()
 
 
 class RawDataDownloader(QObject):
@@ -547,14 +643,14 @@ class RawDataDownloader(QObject):
 
         # These values need to be pushed from the parent.
 
-        self.dirname = []    # Directory where the downloaded files are saved
+        self.dirname = None  # Directory where the downloaded files are saved
         self.stationID = []
         # Unique identifier for the station used for downloading the
         # data from the server
-        self.climateID = []  # Unique identifier for the station
-        self.yr_start = []
-        self.yr_end = []
-        self.StaName = []  # Common name given to the station (not unique)
+        self.climateID = None  # Unique identifier for the station
+        self.yr_start = None
+        self.yr_end = None
+        self.StaName = None  # Common name given to the station (not unique)
 
     def stop_download(self):
         self.__stop_dwnld = True
@@ -614,13 +710,13 @@ class RawDataDownloader(QObject):
                 myear = osp.getmtime(fname)
                 myear = gmtime(myear)[0]
                 if myear == year:
-                    self.ERRFLAG[i] = self.dwnldfile(url, fname)
+                    self.ERRFLAG[i] = self.download_file(url, fname)
                 else:
                     self.ERRFLAG[i] = 3
                     print('    %s: Raw data file already exists for year %d.' %
                           (StaName, year))
             else:
-                self.ERRFLAG[i] = self.dwnldfile(url, fname)
+                self.ERRFLAG[i] = self.download_file(url, fname)
                 print('    %s: Downloading raw data file for year %d.' %
                       (StaName, year))
 
@@ -657,7 +753,7 @@ class RawDataDownloader(QObject):
         self.sig_download_finished.emit(downloaded_raw_datafiles)
         return downloaded_raw_datafiles
 
-    def dwnldfile(self, url, fname):
+    def download_file(self, url, fname):
         try:
             ERRFLAG = 0
             f = urlopen(url)
@@ -673,7 +769,6 @@ class RawDataDownloader(QObject):
             elif hasattr(e, 'code'):
                 print('The server couldn\'t fulfill the request.')
                 print('Error code: ', e.code)
-
         return ERRFLAG
 
 
