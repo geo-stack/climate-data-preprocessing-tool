@@ -84,12 +84,12 @@ class WaitSpinnerBar(QWidget):
         super(WaitSpinnerBar, self).hide()
         self._spinner.stop()
 
-    sig_download_process_ended = QSignal()
+
 class WeatherStationBrowser(QWidget):
     """
     Widget that allows the user to browse and select ECCC climate stations.
     """
-
+    sig_download_process_ended = QSignal()
     ConsoleSignal = QSignal(str)
     staListSignal = QSignal(list)
 
