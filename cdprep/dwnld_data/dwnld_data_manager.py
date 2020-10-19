@@ -768,10 +768,43 @@ class RawDataDownloader(QObject):
         return ERRFLAG
 
 
-# %% if __name__ == '__main__'
+def read_raw_datafiles(filenames):
+    """
+    Read, format and concatenate the weather data from a list of csv files
+    downloaded from the climate.weather.gc.ca website.
+    """
+    dataset = None
+    for filename in filenames:
+        if dataset is None:
+            dataset = read_raw_datafile(filename)
+        else:
+            dataset = dataset.append(read_raw_datafile(filename))
+    return dataset
+
+
+def read_raw_datafile(filename):
+    """
+    Read and format the weather data from one csv file downloaded from the
+    climate.weather.gc.ca website.
+    """
+    dataset = pd.read_csv(filename, dtype='str')
+    valid_columns = [
+        'Date/Time', 'Year', 'Month', 'Day', 'Max Temp (°C)', 'Min Temp (°C)',
+        'Mean Temp (°C)', 'Total Precip (mm)']
+    dataset['Date/Time'] = pd.to_datetime(
+        dataset['Date/Time'], format="%Y-%m-%d")
+    dataset = (
+        dataset
+        .drop(labels=[c for c in dataset.columns if c not in valid_columns],
+              axis=1)
+        .set_index('Date/Time', drop=True)
+        )
+    print(dataset)
+    return dataset
+
 
 if __name__ == '__main__':
-
+    print('test')
     app = QApplication(sys.argv)
 
     stn_browser = WeatherStationBrowser()
