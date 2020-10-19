@@ -654,8 +654,8 @@ class RawDataDownloader(QObject):
                 return
 
             # Define file and URL paths.
-            fname = os.path.join(
-                    dirname, "eng-daily-0101%s-1231%s.csv" % (year, year))
+            fname = osp.join(
+                dirname, "eng-daily-0101%s-1231%s.csv" % (year, year))
             url = ('http://climate.weather.gc.ca/climate_data/' +
                    'bulk_data_e.html?format=csv&stationID=' + str(staID) +
                    '&Year=' + str(year) + '&Month=1&Day=1&timeframe=2' +
@@ -710,6 +710,7 @@ class RawDataDownloader(QObject):
         return downloaded_raw_datafiles
 
     def download_file(self, url, fname):
+        """Download the single csv weather data file at the specified url."""
         try:
             ERRFLAG = 0
             f = urlopen(url)
@@ -717,7 +718,7 @@ class RawDataDownloader(QObject):
             # Write downloaded content to local file.
             with open(fname, 'wb') as local_file:
                 local_file.write(f.read())
-        except URLError as e:                                # pragma: no cover
+        except URLError as e:
             ERRFLAG = 1
             if hasattr(e, 'reason'):
                 print('Failed to reach a server.')
