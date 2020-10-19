@@ -88,7 +88,7 @@ class WaitSpinnerBar(QWidget):
         self._spinner.stop()
 
 
-class WeatherStationBrowser(QWidget):
+class WeatherStationDownloader(QWidget):
     """
     Widget that allows the user to browse and select ECCC climate stations.
     """
@@ -127,7 +127,7 @@ class WeatherStationBrowser(QWidget):
         self.resize(600, 500)
 
     def __initUI__(self):
-        self.setWindowTitle('Weather Stations Browser')
+        self.setWindowTitle('Download Weather Data')
         self.setWindowIcon(get_icon('master'))
         self.setWindowFlags(Qt.Window)
 
@@ -261,11 +261,13 @@ class WeatherStationBrowser(QWidget):
         self.btn_addSta.setToolTip(
             'Add selected stations to the current list of weather stations.')
         self.btn_addSta.clicked.connect(self.btn_addSta_isClicked)
+        self.btn_addSta.hide()
 
         btn_save = QPushButton('Save')
         btn_save.setIcon(get_icon('save'))
         btn_save.setToolTip('Save the list of selected stations to a file.')
         btn_save.clicked.connect(self.btn_save_isClicked)
+        btn_save.hide()
 
         self.btn_download = QPushButton('Download')
         self.btn_download.setIcon(get_icon('download_data'))
@@ -438,7 +440,7 @@ class WeatherStationBrowser(QWidget):
 
     # ---- GUI handlers
     def show(self):
-        super(WeatherStationBrowser, self).show()
+        super().show()
         qr = self.frameGeometry()
         if self.parent():
             parent = self.parent()
@@ -869,7 +871,7 @@ def read_raw_datafile(filename):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    stn_browser = WeatherStationBrowser()
+    stn_browser = WeatherStationDownloader()
     stn_browser.show()
 
     sys.exit(app.exec_())
