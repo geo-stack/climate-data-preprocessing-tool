@@ -804,7 +804,6 @@ def read_raw_datafile(filename):
 
 
 if __name__ == '__main__':
-    print('test')
     app = QApplication(sys.argv)
 
     stn_browser = WeatherStationBrowser()
