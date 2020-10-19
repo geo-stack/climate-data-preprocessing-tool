@@ -28,6 +28,7 @@ from PyQt5.QtWidgets import (
     QMessageBox, QProgressBar, QCheckBox)
 
 # ---- Local imports
+from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
 from cdprep.config.ospath import (
     get_select_file_dialog_dir, set_select_file_dialog_dir)
@@ -136,7 +137,8 @@ class WeatherStationBrowser(QWidget):
         self.lat_spinBox = QDoubleSpinBox()
         self.lat_spinBox.setAlignment(Qt.AlignCenter)
         self.lat_spinBox.setSingleStep(0.1)
-        self.lat_spinBox.setValue(0)
+        self.lat_spinBox.setValue(CONF.get(
+            'weather_data_download_tool', 'latitude', 0))
         self.lat_spinBox.setMinimum(0)
         self.lat_spinBox.setMaximum(180)
         self.lat_spinBox.setSuffix(u' °')
@@ -145,7 +147,8 @@ class WeatherStationBrowser(QWidget):
         self.lon_spinBox = QDoubleSpinBox()
         self.lon_spinBox.setAlignment(Qt.AlignCenter)
         self.lon_spinBox.setSingleStep(0.1)
-        self.lon_spinBox.setValue(0)
+        self.lon_spinBox.setValue(CONF.get(
+            'weather_data_download_tool', 'longitude', 0))
         self.lon_spinBox.setMinimum(0)
         self.lon_spinBox.setMaximum(180)
         self.lon_spinBox.setSuffix(u' °')
@@ -153,12 +156,15 @@ class WeatherStationBrowser(QWidget):
 
         self.radius_SpinBox = QComboBox()
         self.radius_SpinBox.addItems(['25 km', '50 km', '100 km', '200 km'])
+        self.radius_SpinBox.setCurrentIndex(CONF.get(
+            'weather_data_download_tool', 'radius_index', 0))
         self.radius_SpinBox.currentIndexChanged.connect(
             self.search_filters_changed)
 
         self.prox_grpbox = QGroupBox("Proximity Filter")
         self.prox_grpbox.setCheckable(True)
-        self.prox_grpbox.setChecked(False)
+        self.prox_grpbox.setChecked(CONF.get(
+            'weather_data_download_tool', 'proximity_filter', False))
         self.prox_grpbox.toggled.connect(self.proximity_grpbox_toggled)
 
         prox_search_grid = QGridLayout(self.prox_grpbox)
@@ -176,7 +182,8 @@ class WeatherStationBrowser(QWidget):
         # ---- Province filter
         self.prov_widg = QComboBox()
         self.prov_widg.addItems(['All'] + self.PROV_NAME)
-        self.prov_widg.setCurrentIndex(0)
+        self.prov_widg.setCurrentIndex(CONF.get(
+            'weather_data_download_tool', 'province_index', 0))
         self.prov_widg.currentIndexChanged.connect(self.search_filters_changed)
 
         prov_grpbox = QGroupBox()
@@ -193,7 +200,8 @@ class WeatherStationBrowser(QWidget):
         self.nbrYear.setAlignment(Qt.AlignCenter)
         self.nbrYear.setSingleStep(1)
         self.nbrYear.setMinimum(0)
-        self.nbrYear.setValue(3)
+        self.nbrYear.setValue(CONF.get(
+            'weather_data_download_tool', 'min_nbr_of_years', 3))
         self.nbrYear.valueChanged.connect(self.search_filters_changed)
 
         subgrid1 = QGridLayout()
@@ -209,7 +217,8 @@ class WeatherStationBrowser(QWidget):
         self.minYear.setSingleStep(1)
         self.minYear.setMinimum(1840)
         self.minYear.setMaximum(now.year)
-        self.minYear.setValue(1840)
+        self.minYear.setValue(CONF.get(
+            'weather_data_download_tool', 'year_range_left_bound', 1840))
         self.minYear.valueChanged.connect(self.minYear_changed)
 
         label_and = QLabel('and')
@@ -220,7 +229,9 @@ class WeatherStationBrowser(QWidget):
         self.maxYear.setSingleStep(1)
         self.maxYear.setMinimum(1840)
         self.maxYear.setMaximum(now.year)
-        self.maxYear.setValue(now.year)
+        self.maxYear.setValue(CONF.get(
+            'weather_data_download_tool', 'year_range_right_bound', now.year))
+
         self.maxYear.valueChanged.connect(self.maxYear_changed)
 
         subgrid2 = QGridLayout()
@@ -234,6 +245,8 @@ class WeatherStationBrowser(QWidget):
         # Subgridgrid assembly
         self.year_widg = QGroupBox("Data Availability filter")
         self.year_widg.setCheckable(True)
+        self.year_widg.setChecked(CONF.get(
+            'weather_data_download_tool', 'data_availability_filter', False))
 
         grid = QGridLayout(self.year_widg)
         grid.addLayout(subgrid1, 2, 0)
@@ -266,7 +279,8 @@ class WeatherStationBrowser(QWidget):
 
         self.keeprawfiles_checkbox = QCheckBox(
             "Keep original raw data files")
-        self.keeprawfiles_checkbox.setChecked(True)
+        self.keeprawfiles_checkbox.setChecked(
+            CONF.get("weather_data_download_tool", 'keep_raw_files', True))
 
         toolbar_widg = QWidget()
         toolbar_grid = QGridLayout(toolbar_widg)
@@ -435,6 +449,41 @@ class WeatherStationBrowser(QWidget):
 
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+
+    def closeEvent(self, event):
+        CONF.set(
+            'weather_data_download_tool', 'keep_raw_files',
+            self.keeprawfiles_checkbox.isChecked())
+
+        # Proximity Filter Options.
+        CONF.set(
+            'weather_data_download_tool', 'proximity_filter',
+            self.prox_grpbox.isChecked())
+        CONF.set(
+            'weather_data_download_tool', 'latitude', self.lat)
+        CONF.set(
+            'weather_data_download_tool', 'longitude', self.lon)
+        CONF.set(
+            'weather_data_download_tool', 'radius_index',
+            self.radius_SpinBox.currentIndex())
+        CONF.set(
+            'weather_data_download_tool', 'province_index',
+            self.prov_widg.currentIndex())
+
+        # Data Availability Filter Options.
+        CONF.set(
+            'weather_data_download_tool', 'data_availability_filter',
+            self.year_widg.isChecked())
+        CONF.set(
+            'weather_data_download_tool', 'min_nbr_of_years',
+            self.nbrYear.value())
+        CONF.set(
+            'weather_data_download_tool', 'year_range_left_bound',
+            self.minYear.value())
+        CONF.set(
+            'weather_data_download_tool', 'year_range_right_bound',
+            self.maxYear.value())
+        event.accept()
 
     def minYear_changed(self):
         min_yr = min_yr = max(self.minYear.value(), 1840)
@@ -818,12 +867,5 @@ if __name__ == '__main__':
 
     stn_browser = WeatherStationBrowser()
     stn_browser.show()
-
-    stn_browser.set_lat(45.40)
-    stn_browser.set_lon(73.15)
-    stn_browser.set_yearmin(1980)
-    stn_browser.set_yearmax(2015)
-    stn_browser.set_yearnbr(20)
-    stn_browser.search_filters_changed()
 
     sys.exit(app.exec_())
