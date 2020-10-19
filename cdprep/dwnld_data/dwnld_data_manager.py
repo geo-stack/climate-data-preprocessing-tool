@@ -580,8 +580,46 @@ class WeatherStationBrowser(QWidget):
                 print("Unable to close the weather data dowloader thread.")
                 return
 
-    def process_station_data(self, file_list=None):
-        print(file_list)
+    def process_station_data(self, climateid, file_list=None):
+        """
+        Read, concatenate, and save to csv the raw weather data that were
+        just downloaded for the station corresponding to the specified
+        climate ID.
+        """
+        if file_list:
+            station_metadata = self.station_table.get_content4rows(
+                [self.station_table.get_row_from_climateid(climateid)])[0]
+            station_data = read_raw_datafiles(file_list)
+
+            # Define the concatenated filename.
+            station_name = (
+                station_metadata[0].replace('\\', '_').replace('/', '_'))
+            min_year = min(station_data.index).year
+            max_year = max(station_data.index).year
+            filename = osp.join("%s (%s)_%s-%s.csv" % (
+                station_name, climateid, min_year, max_year))
+
+            # Save the concatenated data to csv.
+            data_headers = ['Year', 'Month', 'Day', 'Max Temp (°C)',
+                            'Min Temp (°C)', 'Mean Temp (°C)',
+                            'Total Precip (mm)']
+            fcontent = [
+                ['Station Name', station_metadata[0]],
+                ['Province', station_metadata[4]],
+                ['Latitude (dd)', station_metadata[6]],
+                ['Longitude (dd)', station_metadata[7]],
+                ['Elevation (m)', station_metadata[8]],
+                ['Climate Identifier', station_metadata[5]],
+                [],
+                data_headers]
+            fcontent = fcontent + station_data[data_headers].values.tolist()
+
+            # Save the data to csv.
+            filepath = osp.join(self.dwnld_worker.dirname, filename)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                writer = csv.writer(f, delimiter=',', lineterminator='\n')
+                writer.writerows(fcontent)
+
         self.download_next_station()
 
 
@@ -597,7 +635,7 @@ class RawDataDownloader(QObject):
                   3 -> File NOT downloaded because it already exists
     """
 
-    sig_download_finished = QSignal(list)
+    sig_download_finished = QSignal(str, list)
     sig_update_pbar = QSignal(int)
     ConsoleSignal = QSignal(str)
 
@@ -706,7 +744,8 @@ class RawDataDownloader(QObject):
                 downloaded_raw_datafiles.append(fname)
         print("All raw data downloaded sucessfully for station %s." % StaName)
         self.sig_update_pbar.emit(0)
-        self.sig_download_finished.emit(downloaded_raw_datafiles)
+        self.sig_download_finished.emit(
+            self.climateID, downloaded_raw_datafiles)
         return downloaded_raw_datafiles
 
     def download_file(self, url, fname):
