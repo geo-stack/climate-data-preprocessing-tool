@@ -636,10 +636,6 @@ class RawDataDownloader(QObject):
         self.ERRFLAG = np.ones(yr_end - yr_start + 1)
 
         print("Downloading data for station %s" % StaName)
-        self.ConsoleSignal.emit(
-            '''<font color=black>Downloading data from </font>
-               <font color=blue>www.climate.weather.gc.ca</font>
-               <font color=black> for station %s</font>''' % StaName)
         self.sig_update_pbar.emit(0)
 
         StaName = StaName.replace('\\', '_')
@@ -654,9 +650,7 @@ class RawDataDownloader(QObject):
             if self.__stop_dwnld:
                 # Stop the downloading process.
                 self.__stop_dwnld = False
-                msg = "Downloading process for station %s stopped." % StaName
-                print(msg)
-                self.ConsoleSignal.emit("<font color=red>%s</font>" % msg)
+                print("Downloading process for station %s stopped." % StaName)
                 return
 
             # Define file and URL paths.
@@ -710,12 +704,7 @@ class RawDataDownloader(QObject):
                          for station %s for year %d. Downloading is skipped.
                        </font>''' % (StaName, year))
                 downloaded_raw_datafiles.append(fname)
-
-        cmt = ("All raw  data files downloaded sucessfully for "
-               "station %s.") % StaName
-        print(cmt)
-        self.ConsoleSignal.emit('<font color=black>%s</font>' % cmt)
-
+        print("All raw data downloaded sucessfully for station %s." % StaName)
         self.sig_update_pbar.emit(0)
         self.sig_download_finished.emit(downloaded_raw_datafiles)
         return downloaded_raw_datafiles
