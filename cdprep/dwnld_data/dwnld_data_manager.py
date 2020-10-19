@@ -247,6 +247,7 @@ class WeatherStationBrowser(QWidget):
         self.year_widg.setCheckable(True)
         self.year_widg.setChecked(CONF.get(
             'weather_data_download_tool', 'data_availability_filter', False))
+        self.year_widg.toggled.connect(self.search_filters_changed)
 
         grid = QGridLayout(self.year_widg)
         grid.addLayout(subgrid1, 2, 0)
@@ -545,7 +546,10 @@ class WeatherStationBrowser(QWidget):
             stnlist = self.stn_finder_worker.get_stationlist(
                 prov=self.prov,
                 prox=self.prox,
-                yrange=(self.year_min, self.year_max, self.nbr_of_years))
+                yrange=((self.year_min, self.year_max, self.nbr_of_years) if
+                        self.year_widg.isChecked() else
+                        None)
+                )
             self.station_table.populate_table(stnlist)
 
     # ---- Download weather data
