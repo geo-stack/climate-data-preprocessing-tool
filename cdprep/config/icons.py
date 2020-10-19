@@ -19,16 +19,25 @@ import qtawesome as qta
 
 # ---- Local imports
 from cdprep import __rootdir__
-from cdprep.config.gui import ICON_COLOR
+from cdprep.config.gui import ICON_COLOR, RED
 
 DIRNAME = os.path.join(__rootdir__, 'ressources', 'icons')
 LOCAL_ICONS = {
     'master': 'cdprep'}
 
 FA_ICONS = {
+    'download_data': [
+        ('mdi.download',),
+        {'color': ICON_COLOR}],
+    'refresh': [
+        ('mdi.refresh',),
+        {'color': ICON_COLOR}],
     'save': [
         ('fa.save',),
         {'color': ICON_COLOR}],
+    'stop': [
+        ('mdi.stop-circle-outline',),
+        {'color': RED}],
     }
 
 ICON_SIZES = {'large': (32, 32),

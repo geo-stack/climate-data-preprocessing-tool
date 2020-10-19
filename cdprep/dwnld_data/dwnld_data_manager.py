@@ -8,6 +8,7 @@
 # -----------------------------------------------------------------------------
 
 # ---- Standard imports
+import csv
 from datetime import datetime
 import sys
 import os
@@ -23,14 +24,19 @@ from PyQt5.QtCore import pyqtSlot as QSlot
 from PyQt5.QtCore import Qt, QPoint, QThread, QSize, QObject
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QDoubleSpinBox, QComboBox, QFrame, QGridLayout, QSpinBox,
-    QPushButton, QDesktopWidget, QApplication, QFileDialog, QGroupBox, QStyle)
+    QPushButton, QDesktopWidget, QApplication, QFileDialog, QGroupBox, QStyle,
+    QMessageBox, QProgressBar, QCheckBox)
 
 # ---- Local imports
+from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
+from cdprep.config.ospath import (
+    get_select_file_dialog_dir, set_select_file_dialog_dir)
 from cdprep.widgets.waitingspinner import QWaitingSpinner
 from cdprep.dwnld_data.weather_stationlist import WeatherSationView
 from cdprep.dwnld_data.weather_station_finder import (
     WeatherStationFinder, PROV_NAME_ABB)
+from cdprep.utils.ospath import delete_folder_recursively
 
 
 class WaitSpinnerBar(QWidget):
@@ -82,11 +88,11 @@ class WaitSpinnerBar(QWidget):
         self._spinner.stop()
 
 
-class WeatherStationBrowser(QWidget):
+class WeatherStationDownloader(QWidget):
     """
     Widget that allows the user to browse and select ECCC climate stations.
     """
-
+    sig_download_process_ended = QSignal()
     ConsoleSignal = QSignal(str)
     staListSignal = QSignal(list)
 
@@ -107,37 +113,42 @@ class WeatherStationBrowser(QWidget):
             self.waitspinnerbar.set_label)
         self.__initUI__()
 
+        # Setup the raw data downloader.
+        self._dwnld_stations_list = []
+        self.dwnld_thread = QThread()
+        self.dwnld_worker = RawDataDownloader()
+        self.dwnld_worker.moveToThread(self.dwnld_thread)
+
+        self.dwnld_worker.sig_download_finished.connect(
+            self.process_station_data)
+        self.dwnld_worker.sig_update_pbar.connect(self.progressbar.setValue)
+
         self.start_load_database()
+        self.resize(600, 500)
 
     def __initUI__(self):
-        self.setWindowTitle('Weather Stations Browser')
+        self.setWindowTitle('Download Weather Data')
         self.setWindowIcon(get_icon('master'))
         self.setWindowFlags(Qt.Window)
 
         now = datetime.now()
 
-        # ---- Tab Widget Search
-
-        # ---- Proximity filter groupbox
-        label_Lat = QLabel('Latitude :')
-        label_Lat2 = QLabel('North')
-
+        # Setup the proximity filter group.
         self.lat_spinBox = QDoubleSpinBox()
         self.lat_spinBox.setAlignment(Qt.AlignCenter)
         self.lat_spinBox.setSingleStep(0.1)
-        self.lat_spinBox.setValue(0)
+        self.lat_spinBox.setValue(CONF.get(
+            'weather_data_download_tool', 'latitude', 0))
         self.lat_spinBox.setMinimum(0)
         self.lat_spinBox.setMaximum(180)
         self.lat_spinBox.setSuffix(u' °')
         self.lat_spinBox.valueChanged.connect(self.proximity_grpbox_toggled)
 
-        label_Lon = QLabel('Longitude :')
-        label_Lon2 = QLabel('West')
-
         self.lon_spinBox = QDoubleSpinBox()
         self.lon_spinBox.setAlignment(Qt.AlignCenter)
         self.lon_spinBox.setSingleStep(0.1)
-        self.lon_spinBox.setValue(0)
+        self.lon_spinBox.setValue(CONF.get(
+            'weather_data_download_tool', 'longitude', 0))
         self.lon_spinBox.setMinimum(0)
         self.lon_spinBox.setMaximum(180)
         self.lon_spinBox.setSuffix(u' °')
@@ -145,77 +156,69 @@ class WeatherStationBrowser(QWidget):
 
         self.radius_SpinBox = QComboBox()
         self.radius_SpinBox.addItems(['25 km', '50 km', '100 km', '200 km'])
+        self.radius_SpinBox.setCurrentIndex(CONF.get(
+            'weather_data_download_tool', 'radius_index', 0))
         self.radius_SpinBox.currentIndexChanged.connect(
             self.search_filters_changed)
 
-        prox_search_grid = QGridLayout()
-        row = 0
-        prox_search_grid.addWidget(label_Lat, row, 1)
-        prox_search_grid.addWidget(self.lat_spinBox, row, 2)
-        prox_search_grid.addWidget(label_Lat2, row, 3)
-        row += 1
-        prox_search_grid.addWidget(label_Lon, row, 1)
-        prox_search_grid.addWidget(self.lon_spinBox, row, 2)
-        prox_search_grid.addWidget(label_Lon2, row, 3)
-        row += 1
-        prox_search_grid.addWidget(QLabel('Search Radius :'), row, 1)
-        prox_search_grid.addWidget(self.radius_SpinBox, row, 2)
-
-        prox_search_grid.setColumnStretch(0, 100)
-        prox_search_grid.setColumnStretch(4, 100)
-        prox_search_grid.setRowStretch(row+1, 100)
-        prox_search_grid.setHorizontalSpacing(20)
-        prox_search_grid.setContentsMargins(10, 10, 10, 10)  # (L, T, R, B)
-
-        self.prox_grpbox = QGroupBox("Proximity filter")
+        self.prox_grpbox = QGroupBox("Proximity Filter")
         self.prox_grpbox.setCheckable(True)
-        self.prox_grpbox.setChecked(False)
+        self.prox_grpbox.setChecked(CONF.get(
+            'weather_data_download_tool', 'proximity_filter', False))
         self.prox_grpbox.toggled.connect(self.proximity_grpbox_toggled)
-        self.prox_grpbox.setLayout(prox_search_grid)
+
+        prox_search_grid = QGridLayout(self.prox_grpbox)
+        prox_search_grid.addWidget(QLabel('Latitude:'), 0, 0)
+        prox_search_grid.addWidget(self.lat_spinBox, 0, 1)
+        prox_search_grid.addWidget(QLabel('North'), 0, 2)
+        prox_search_grid.addWidget(QLabel('Longitude:'), 1, 0)
+        prox_search_grid.addWidget(self.lon_spinBox, 1, 1)
+        prox_search_grid.addWidget(QLabel('West'), 1, 2)
+        prox_search_grid.addWidget(QLabel('Search Radius:'), 2, 0)
+        prox_search_grid.addWidget(self.radius_SpinBox, 2, 1)
+        prox_search_grid.setColumnStretch(0, 100)
+        prox_search_grid.setRowStretch(3, 100)
 
         # ---- Province filter
-        prov_names = ['All']
-        prov_names.extend(self.PROV_NAME)
         self.prov_widg = QComboBox()
-        self.prov_widg.addItems(prov_names)
-        self.prov_widg.setCurrentIndex(0)
+        self.prov_widg.addItems(['All'] + self.PROV_NAME)
+        self.prov_widg.setCurrentIndex(CONF.get(
+            'weather_data_download_tool', 'province_index', 0))
         self.prov_widg.currentIndexChanged.connect(self.search_filters_changed)
 
-        layout = QGridLayout()
-        layout.addWidget(self.prov_widg, 2, 1)
-        layout.setColumnStretch(2, 100)
-        layout.setVerticalSpacing(10)
-
-        prov_grpbox = QGroupBox("Province filter")
-        prov_grpbox.setLayout(layout)
+        prov_grpbox = QGroupBox()
+        prov_layout = QGridLayout(prov_grpbox)
+        prov_layout.addWidget(QLabel('Province:'), 0, 0)
+        prov_layout.addWidget(self.prov_widg, 0, 1)
+        prov_layout.setColumnStretch(0, 1)
+        prov_layout.setRowStretch(1, 1)
 
         # ---- Data availability filter
 
         # Number of years with data
-
         self.nbrYear = QSpinBox()
         self.nbrYear.setAlignment(Qt.AlignCenter)
         self.nbrYear.setSingleStep(1)
         self.nbrYear.setMinimum(0)
-        self.nbrYear.setValue(3)
+        self.nbrYear.setValue(CONF.get(
+            'weather_data_download_tool', 'min_nbr_of_years', 3))
         self.nbrYear.valueChanged.connect(self.search_filters_changed)
 
         subgrid1 = QGridLayout()
-        subgrid1.addWidget(self.nbrYear, 0, 0)
-        subgrid1.addWidget(QLabel('years of data between'), 0, 1)
-
-        subgrid1.setHorizontalSpacing(10)
-        subgrid1.setContentsMargins(0, 0, 0, 0)  # (L, T, R, B)
-        subgrid1.setColumnStretch(2, 100)
+        subgrid1.setContentsMargins(0, 0, 0, 0)
+        subgrid1.addWidget(QLabel('Data available for at least:'), 0, 0)
+        subgrid1.addWidget(self.nbrYear, 0, 1)
+        subgrid1.addWidget(QLabel('year(s)'), 0, 2)
+        subgrid1.setColumnStretch(3, 100)
 
         # Year range
-
         self.minYear = QSpinBox()
         self.minYear.setAlignment(Qt.AlignCenter)
         self.minYear.setSingleStep(1)
         self.minYear.setMinimum(1840)
         self.minYear.setMaximum(now.year)
-        self.minYear.setValue(1840)
+        self.minYear.setValue(CONF.get(
+            'weather_data_download_tool', 'year_range_left_bound', 1840))
         self.minYear.valueChanged.connect(self.minYear_changed)
 
         label_and = QLabel('and')
@@ -226,91 +229,95 @@ class WeatherStationBrowser(QWidget):
         self.maxYear.setSingleStep(1)
         self.maxYear.setMinimum(1840)
         self.maxYear.setMaximum(now.year)
-        self.maxYear.setValue(now.year)
+        self.maxYear.setValue(CONF.get(
+            'weather_data_download_tool', 'year_range_right_bound', now.year))
+
         self.maxYear.valueChanged.connect(self.maxYear_changed)
 
         subgrid2 = QGridLayout()
-        subgrid2.addWidget(self.minYear, 0, 0)
-        subgrid2.addWidget(label_and, 0, 1)
-        subgrid2.addWidget(self.maxYear, 0, 2)
-
-        subgrid2.setHorizontalSpacing(10)
+        subgrid2.addWidget(QLabel('Data available between:'), 0, 0)
+        subgrid2.addWidget(self.minYear, 0, 1)
+        subgrid2.addWidget(label_and, 0, 2)
+        subgrid2.addWidget(self.maxYear, 0, 3)
         subgrid2.setContentsMargins(0, 0, 0, 0)
-        subgrid2.setColumnStretch(4, 100)
+        subgrid2.setColumnStretch(0, 100)
 
         # Subgridgrid assembly
-
-        grid = QGridLayout()
-
-        grid.addWidget(QLabel('Search for stations with at least'), 0, 0)
-        grid.addLayout(subgrid1, 1, 0)
-        grid.addLayout(subgrid2, 2, 0)
-
-        grid.setVerticalSpacing(5)
-        grid.setRowStretch(0, 100)
-
         self.year_widg = QGroupBox("Data Availability filter")
-        self.year_widg.setLayout(grid)
+        self.year_widg.setCheckable(True)
+        self.year_widg.setChecked(CONF.get(
+            'weather_data_download_tool', 'data_availability_filter', False))
+        self.year_widg.toggled.connect(self.search_filters_changed)
+
+        grid = QGridLayout(self.year_widg)
+        grid.addLayout(subgrid1, 2, 0)
+        grid.addLayout(subgrid2, 1, 0)
+        grid.setRowStretch(3, 100)
 
         # Setup the toolbar.
-        self.btn_addSta = btn_addSta = QPushButton('Add')
-        btn_addSta.setIcon(get_icon('add2list'))
-        btn_addSta.setIconSize(get_iconsize('small'))
-        btn_addSta.setToolTip('Add selected found weather stations to the '
-                              'current list of weather stations.')
-        btn_addSta.clicked.connect(self.btn_addSta_isClicked)
+        self.btn_addSta = QPushButton('Add')
+        self.btn_addSta.setIcon(get_icon('add2list'))
+        self.btn_addSta.setIconSize(get_iconsize('small'))
+        self.btn_addSta.setToolTip(
+            'Add selected stations to the current list of weather stations.')
+        self.btn_addSta.clicked.connect(self.btn_addSta_isClicked)
+        self.btn_addSta.hide()
 
         btn_save = QPushButton('Save')
         btn_save.setIcon(get_icon('save'))
-        btn_save.setIconSize(get_iconsize('small'))
         btn_save.setToolTip('Save the list of selected stations to a file.')
         btn_save.clicked.connect(self.btn_save_isClicked)
+        btn_save.hide()
 
-        btn_download = QPushButton('Download')
+        self.btn_download = QPushButton('Download')
+        self.btn_download.setIcon(get_icon('download_data'))
+        self.btn_download.clicked.connect(self.start_download_process)
 
         self.btn_fetch = btn_fetch = QPushButton('Refresh')
         btn_fetch.setIcon(get_icon('refresh'))
-        btn_fetch.setIconSize(get_iconsize('small'))
-        btn_fetch.setToolTip("Updates the climate station database by"
-                             " fetching it again from the ECCC ftp server.")
+        btn_fetch.setToolTip(
+            "Update the list of climate stations by fetching it again from "
+            "the ECCC ftp server.")
         btn_fetch.clicked.connect(self.btn_fetch_isClicked)
 
-        toolbar_grid = QGridLayout()
+        self.keeprawfiles_checkbox = QCheckBox(
+            "Keep original raw data files")
+        self.keeprawfiles_checkbox.setChecked(
+            CONF.get("weather_data_download_tool", 'keep_raw_files', True))
+
         toolbar_widg = QWidget()
+        toolbar_grid = QGridLayout(toolbar_widg)
+        toolbar_grid.addWidget(self.keeprawfiles_checkbox, 1, 0)
+        toolbar_grid.addWidget(self.btn_addSta, 1, 1)
+        toolbar_grid.addWidget(btn_save, 1, 2)
+        toolbar_grid.addWidget(btn_fetch, 1, 3)
+        toolbar_grid.addWidget(self.btn_download, 1, 4)
+        toolbar_grid.setColumnStretch(0, 100)
+        toolbar_grid.setContentsMargins(0, 30, 0, 0)
 
-        for col, btn in enumerate([btn_addSta, btn_save, btn_fetch,
-                                   btn_download]):
-            toolbar_grid.addWidget(btn, 0, col+1)
-
-        toolbar_grid.setColumnStretch(toolbar_grid.columnCount(), 100)
-        toolbar_grid.setSpacing(5)
-        toolbar_grid.setContentsMargins(0, 30, 0, 0)  # (L, T, R, B)
-
-        toolbar_widg.setLayout(toolbar_grid)
-
-        # ---- Left Panel
-
-        panel_title = QLabel('<b>Weather Station Search Criteria</b>')
-
+        # Setup the left panel.
         left_panel = QFrame()
-        left_panel_grid = QGridLayout()
-
-        left_panel_grid.addWidget(panel_title, 0, 0)
-        left_panel_grid.addWidget(self.prox_grpbox, 1, 0)
-        left_panel_grid.addWidget(prov_grpbox, 2, 0)
+        left_panel_grid = QGridLayout(left_panel)
+        left_panel_grid.setContentsMargins(0, 0, 0, 0)
+        left_panel_grid.addWidget(
+            QLabel('Search Criteria'), 0, 0)
+        left_panel_grid.addWidget(prov_grpbox, 1, 0)
+        left_panel_grid.addWidget(self.prox_grpbox, 2, 0)
         left_panel_grid.addWidget(self.year_widg, 3, 0)
-        left_panel_grid.setRowStretch(4, 100)
-        left_panel_grid.addWidget(toolbar_widg, 5, 0)
+        left_panel_grid.setRowStretch(3, 100)
 
-        left_panel_grid.setVerticalSpacing(20)
-        left_panel_grid.setContentsMargins(0, 0, 0, 0)   # (L, T, R, B)
-        left_panel.setLayout(left_panel_grid)
+        # Setup the progress bar.
+        self.progressbar = QProgressBar()
+        self.progressbar.setValue(0)
+        self.progressbar.hide()
 
         # Create the main grid.
         main_layout = QGridLayout(self)
         main_layout.addWidget(left_panel, 0, 0)
         main_layout.addWidget(self.station_table, 0, 1)
         main_layout.addWidget(self.waitspinnerbar, 0, 1)
+        main_layout.addWidget(toolbar_widg, 1, 0, 1, 2)
+        main_layout.addWidget(self.progressbar, 2, 0, 1, 2)
         main_layout.setColumnStretch(1, 100)
 
     @property
@@ -433,7 +440,7 @@ class WeatherStationBrowser(QWidget):
 
     # ---- GUI handlers
     def show(self):
-        super(WeatherStationBrowser, self).show()
+        super().show()
         qr = self.frameGeometry()
         if self.parent():
             parent = self.parent()
@@ -445,6 +452,41 @@ class WeatherStationBrowser(QWidget):
 
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+
+    def closeEvent(self, event):
+        CONF.set(
+            'weather_data_download_tool', 'keep_raw_files',
+            self.keeprawfiles_checkbox.isChecked())
+
+        # Proximity Filter Options.
+        CONF.set(
+            'weather_data_download_tool', 'proximity_filter',
+            self.prox_grpbox.isChecked())
+        CONF.set(
+            'weather_data_download_tool', 'latitude', self.lat)
+        CONF.set(
+            'weather_data_download_tool', 'longitude', self.lon)
+        CONF.set(
+            'weather_data_download_tool', 'radius_index',
+            self.radius_SpinBox.currentIndex())
+        CONF.set(
+            'weather_data_download_tool', 'province_index',
+            self.prov_widg.currentIndex())
+
+        # Data Availability Filter Options.
+        CONF.set(
+            'weather_data_download_tool', 'data_availability_filter',
+            self.year_widg.isChecked())
+        CONF.set(
+            'weather_data_download_tool', 'min_nbr_of_years',
+            self.nbrYear.value())
+        CONF.set(
+            'weather_data_download_tool', 'year_range_left_bound',
+            self.minYear.value())
+        CONF.set(
+            'weather_data_download_tool', 'year_range_right_bound',
+            self.maxYear.value())
+        event.accept()
 
     def minYear_changed(self):
         min_yr = min_yr = max(self.minYear.value(), 1840)
@@ -504,13 +546,147 @@ class WeatherStationBrowser(QWidget):
         """
         if self.stn_finder_worker.data is not None:
             stnlist = self.stn_finder_worker.get_stationlist(
-                    prov=self.prov, prox=self.prox,
-                    yrange=(self.year_min, self.year_max, self.nbr_of_years))
+                prov=self.prov,
+                prox=self.prox,
+                yrange=((self.year_min, self.year_max, self.nbr_of_years) if
+                        self.year_widg.isChecked() else
+                        None)
+                )
             self.station_table.populate_table(stnlist)
 
     # ---- Download weather data
-    def download_checked_stations_data(self):
-        pass
+    def start_download_process(self):
+        """Start the downloading process of raw weather data files."""
+        # Grab the info of the weather stations that are selected.
+        rows = self.station_table.get_checked_rows()
+        self._dwnld_stations_list = self.station_table.get_content4rows(rows)
+        if len(self._dwnld_stations_list) == 0:
+            QMessageBox.warning(
+                self, 'Warning',
+                "No weather station currently selected.",
+                QMessageBox.Ok)
+            return
+
+        # Select the download folder.
+        dirname = QFileDialog().getExistingDirectory(
+            self, 'Choose Download Folder', get_select_file_dialog_dir())
+        if not dirname:
+            return
+        set_select_file_dialog_dir(dirname)
+
+        # Update the UI.
+        self.progressbar.show()
+        self.btn_download.setIcon(get_icon('stop'))
+
+        # Set thread working directory.
+        self.dwnld_worker.dirname = dirname
+
+        # Start downloading data.
+        self.download_next_station()
+
+    def stop_download_process(self):
+        print('Stopping the download process...')
+        self.btn_download.setIcon(get_icon('download'))
+        self.dwnld_worker.stop_download()
+        self.wait_for_thread_to_quit()
+        self.btn_download.setEnabled(True)
+        self.sig_download_process_ended.emit()
+        print('Download process stopped.')
+
+    def download_next_station(self):
+        self.wait_for_thread_to_quit()
+        try:
+            dwnld_station = self._dwnld_stations_list.pop(0)
+        except IndexError:
+            # There is no more data to download.
+            print('Raw weather data downloaded for all selected stations.')
+            self.btn_download.setIcon(get_icon('download'))
+            self.progressbar.hide()
+            self.sig_download_process_ended.emit()
+            return
+
+        # Set worker attributes.
+        self.dwnld_worker.StaName = dwnld_station[0]
+        self.dwnld_worker.stationID = dwnld_station[1]
+        self.dwnld_worker.yr_start = dwnld_station[2]
+        self.dwnld_worker.yr_end = dwnld_station[3]
+        self.dwnld_worker.climateID = dwnld_station[5]
+
+        # Highlight the row of the next station to download data from.
+        self.station_table.selectRow(
+            self.station_table.get_row_from_climateid(dwnld_station[5]))
+
+        # Start the downloading process.
+        try:
+            self.dwnld_thread.started.disconnect(
+                self.dwnld_worker.download_data)
+        except TypeError:
+            # The method self.dwnld_worker.download_data is not connected.
+            pass
+        finally:
+            self.dwnld_thread.started.connect(self.dwnld_worker.download_data)
+            self.dwnld_thread.start()
+
+    def wait_for_thread_to_quit(self):
+        self.dwnld_thread.quit()
+        waittime = 0
+        while self.dwnld_thread.isRunning():
+            print('Waiting for the downloading thread to close')
+            sleep(0.1)
+            waittime += 0.1
+            if waittime > 15:
+                print("Unable to close the weather data dowloader thread.")
+                return
+
+    def process_station_data(self, climateid, file_list=None):
+        """
+        Read, concatenate, and save to csv the raw weather data that were
+        just downloaded for the station corresponding to the specified
+        climate ID.
+        """
+        if file_list:
+            station_metadata = self.station_table.get_content4rows(
+                [self.station_table.get_row_from_climateid(climateid)])[0]
+            station_data = read_raw_datafiles(file_list)
+            print('Formating and concatenating raw data for station {}.'
+                  .format(station_metadata[0]))
+
+            # Define the concatenated filename.
+            station_name = (
+                station_metadata[0].replace('\\', '_').replace('/', '_'))
+            min_year = min(station_data.index).year
+            max_year = max(station_data.index).year
+            filename = osp.join("%s (%s)_%s-%s.csv" % (
+                station_name, climateid, min_year, max_year))
+
+            # Save the concatenated data to csv.
+            data_headers = ['Year', 'Month', 'Day', 'Max Temp (°C)',
+                            'Min Temp (°C)', 'Mean Temp (°C)',
+                            'Total Precip (mm)']
+            fcontent = [
+                ['Station Name', station_metadata[0]],
+                ['Province', station_metadata[4]],
+                ['Latitude (dd)', station_metadata[6]],
+                ['Longitude (dd)', station_metadata[7]],
+                ['Elevation (m)', station_metadata[8]],
+                ['Climate Identifier', station_metadata[5]],
+                [],
+                data_headers]
+            fcontent = fcontent + station_data[data_headers].values.tolist()
+
+            # Save the data to csv.
+            filepath = osp.join(self.dwnld_worker.dirname, filename)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                writer = csv.writer(f, delimiter=',', lineterminator='\n')
+                writer.writerows(fcontent)
+
+            # Delete all raw data files if the option is checked.
+            if not self.keeprawfiles_checkbox.isChecked():
+                print('Deleting raw data files for station {}.'
+                      .format(station_metadata[0]))
+                delete_folder_recursively(osp.dirname(file_list[0]))
+
+        self.download_next_station()
 
 
 class RawDataDownloader(QObject):
@@ -525,7 +701,7 @@ class RawDataDownloader(QObject):
                   3 -> File NOT downloaded because it already exists
     """
 
-    sig_download_finished = QSignal(list)
+    sig_download_finished = QSignal(str, list)
     sig_update_pbar = QSignal(int)
     ConsoleSignal = QSignal(str)
 
@@ -538,14 +714,14 @@ class RawDataDownloader(QObject):
 
         # These values need to be pushed from the parent.
 
-        self.dirname = []    # Directory where the downloaded files are saved
+        self.dirname = None  # Directory where the downloaded files are saved
         self.stationID = []
         # Unique identifier for the station used for downloading the
         # data from the server
-        self.climateID = []  # Unique identifier for the station
-        self.yr_start = []
-        self.yr_end = []
-        self.StaName = []  # Common name given to the station (not unique)
+        self.climateID = None  # Unique identifier for the station
+        self.yr_start = None
+        self.yr_end = None
+        self.StaName = None  # Common name given to the station (not unique)
 
     def stop_download(self):
         self.__stop_dwnld = True
@@ -564,10 +740,6 @@ class RawDataDownloader(QObject):
         self.ERRFLAG = np.ones(yr_end - yr_start + 1)
 
         print("Downloading data for station %s" % StaName)
-        self.ConsoleSignal.emit(
-            '''<font color=black>Downloading data from </font>
-               <font color=blue>www.climate.weather.gc.ca</font>
-               <font color=black> for station %s</font>''' % StaName)
         self.sig_update_pbar.emit(0)
 
         StaName = StaName.replace('\\', '_')
@@ -582,14 +754,12 @@ class RawDataDownloader(QObject):
             if self.__stop_dwnld:
                 # Stop the downloading process.
                 self.__stop_dwnld = False
-                msg = "Downloading process for station %s stopped." % StaName
-                print(msg)
-                self.ConsoleSignal.emit("<font color=red>%s</font>" % msg)
+                print("Downloading process for station %s stopped." % StaName)
                 return
 
             # Define file and URL paths.
-            fname = os.path.join(
-                    dirname, "eng-daily-0101%s-1231%s.csv" % (year, year))
+            fname = osp.join(
+                dirname, "eng-daily-0101%s-1231%s.csv" % (year, year))
             url = ('http://climate.weather.gc.ca/climate_data/' +
                    'bulk_data_e.html?format=csv&stationID=' + str(staID) +
                    '&Year=' + str(year) + '&Month=1&Day=1&timeframe=2' +
@@ -605,13 +775,13 @@ class RawDataDownloader(QObject):
                 myear = osp.getmtime(fname)
                 myear = gmtime(myear)[0]
                 if myear == year:
-                    self.ERRFLAG[i] = self.dwnldfile(url, fname)
+                    self.ERRFLAG[i] = self.download_file(url, fname)
                 else:
                     self.ERRFLAG[i] = 3
                     print('    %s: Raw data file already exists for year %d.' %
                           (StaName, year))
             else:
-                self.ERRFLAG[i] = self.dwnldfile(url, fname)
+                self.ERRFLAG[i] = self.download_file(url, fname)
                 print('    %s: Downloading raw data file for year %d.' %
                       (StaName, year))
 
@@ -638,17 +808,14 @@ class RawDataDownloader(QObject):
                          for station %s for year %d. Downloading is skipped.
                        </font>''' % (StaName, year))
                 downloaded_raw_datafiles.append(fname)
-
-        cmt = ("All raw  data files downloaded sucessfully for "
-               "station %s.") % StaName
-        print(cmt)
-        self.ConsoleSignal.emit('<font color=black>%s</font>' % cmt)
-
+        print("All raw data downloaded sucessfully for station %s." % StaName)
         self.sig_update_pbar.emit(0)
-        self.sig_download_finished.emit(downloaded_raw_datafiles)
+        self.sig_download_finished.emit(
+            self.climateID, downloaded_raw_datafiles)
         return downloaded_raw_datafiles
 
-    def dwnldfile(self, url, fname):
+    def download_file(self, url, fname):
+        """Download the single csv weather data file at the specified url."""
         try:
             ERRFLAG = 0
             f = urlopen(url)
@@ -656,7 +823,7 @@ class RawDataDownloader(QObject):
             # Write downloaded content to local file.
             with open(fname, 'wb') as local_file:
                 local_file.write(f.read())
-        except URLError as e:                                # pragma: no cover
+        except URLError as e:
             ERRFLAG = 1
             if hasattr(e, 'reason'):
                 print('Failed to reach a server.')
@@ -664,24 +831,47 @@ class RawDataDownloader(QObject):
             elif hasattr(e, 'code'):
                 print('The server couldn\'t fulfill the request.')
                 print('Error code: ', e.code)
-
         return ERRFLAG
 
 
-# %% if __name__ == '__main__'
+def read_raw_datafiles(filenames):
+    """
+    Read, format and concatenate the weather data from a list of csv files
+    downloaded from the climate.weather.gc.ca website.
+    """
+    dataset = None
+    for filename in filenames:
+        if dataset is None:
+            dataset = read_raw_datafile(filename)
+        else:
+            dataset = dataset.append(read_raw_datafile(filename))
+    return dataset
+
+
+def read_raw_datafile(filename):
+    """
+    Read and format the weather data from one csv file downloaded from the
+    climate.weather.gc.ca website.
+    """
+    dataset = pd.read_csv(filename, dtype='str')
+    valid_columns = [
+        'Date/Time', 'Year', 'Month', 'Day', 'Max Temp (°C)', 'Min Temp (°C)',
+        'Mean Temp (°C)', 'Total Precip (mm)']
+    dataset['Date/Time'] = pd.to_datetime(
+        dataset['Date/Time'], format="%Y-%m-%d")
+    dataset = (
+        dataset
+        .drop(labels=[c for c in dataset.columns if c not in valid_columns],
+              axis=1)
+        .set_index('Date/Time', drop=True)
+        )
+    return dataset
+
 
 if __name__ == '__main__':
-
     app = QApplication(sys.argv)
 
-    stn_browser = WeatherStationBrowser()
+    stn_browser = WeatherStationDownloader()
     stn_browser.show()
-
-    stn_browser.set_lat(45.40)
-    stn_browser.set_lon(73.15)
-    stn_browser.set_yearmin(1980)
-    stn_browser.set_yearmax(2015)
-    stn_browser.set_yearnbr(20)
-    stn_browser.search_filters_changed()
 
     sys.exit(app.exec_())
