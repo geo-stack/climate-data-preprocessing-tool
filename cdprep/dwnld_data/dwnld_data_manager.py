@@ -35,6 +35,7 @@ from cdprep.widgets.waitingspinner import QWaitingSpinner
 from cdprep.dwnld_data.weather_stationlist import WeatherSationView
 from cdprep.dwnld_data.weather_station_finder import (
     WeatherStationFinder, PROV_NAME_ABB)
+from cdprep.utils.ospath import delete_folder_recursively
 
 
 class WaitSpinnerBar(QWidget):
@@ -122,6 +123,7 @@ class WeatherStationBrowser(QWidget):
         self.dwnld_worker.sig_update_pbar.connect(self.progressbar.setValue)
 
         self.start_load_database()
+        self.resize(600, 500)
 
     def __initUI__(self):
         self.setWindowTitle('Weather Stations Browser')
@@ -264,6 +266,7 @@ class WeatherStationBrowser(QWidget):
 
         self.keeprawfiles_checkbox = QCheckBox(
             "Keep original raw data files")
+        self.keeprawfiles_checkbox.setChecked(True)
 
         toolbar_widg = QWidget()
         toolbar_grid = QGridLayout(toolbar_widg)
@@ -590,6 +593,8 @@ class WeatherStationBrowser(QWidget):
             station_metadata = self.station_table.get_content4rows(
                 [self.station_table.get_row_from_climateid(climateid)])[0]
             station_data = read_raw_datafiles(file_list)
+            print('Formating and concatenating raw data for station {}.'
+                  .format(station_metadata[0]))
 
             # Define the concatenated filename.
             station_name = (
@@ -619,6 +624,12 @@ class WeatherStationBrowser(QWidget):
             with open(filepath, 'w', encoding='utf-8') as f:
                 writer = csv.writer(f, delimiter=',', lineterminator='\n')
                 writer.writerows(fcontent)
+
+            # Delete all raw data files if the option is checked.
+            if not self.keeprawfiles_checkbox.isChecked():
+                print('Deleting raw data files for station {}.'
+                      .format(station_metadata[0]))
+                delete_folder_recursively(osp.dirname(file_list[0]))
 
         self.download_next_station()
 
@@ -799,7 +810,6 @@ def read_raw_datafile(filename):
               axis=1)
         .set_index('Date/Time', drop=True)
         )
-    print(dataset)
     return dataset
 
 
