@@ -26,9 +26,18 @@ LOCAL_ICONS = {
     'master': 'cdprep'}
 
 FA_ICONS = {
+    'chevron_down': [
+        ('mdi.chevron-down',),
+        {'color': ICON_COLOR}],
+    'chevron_right': [
+        ('mdi.chevron-right',),
+        {'color': ICON_COLOR}],
     'download_data': [
         ('mdi.download',),
         {'color': ICON_COLOR}],
+    'folder_open': [
+        ('mdi.folder-open',),
+        {'color': ICON_COLOR, 'scale_factor': 1.3}],
     'refresh': [
         ('mdi.refresh',),
         {'color': ICON_COLOR}],

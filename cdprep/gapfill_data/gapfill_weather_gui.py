@@ -311,7 +311,8 @@ class WeatherDataGapfiller(QWidget):
         advanced_widg = advanced_settings(self)
 
         self.stack_widget = ToolPanel()
-        self.stack_widget.setIcons(get_icon('triright'), get_icon('tridown'))
+        self.stack_widget.setIcons(
+            get_icon('chevron_right'), get_icon('chevron_down'))
         self.stack_widget.addItem(cutoff_widg, 'Stations Selection Criteria :')
         self.stack_widget.addItem(MLRM_widg, 'Regression Model :')
         self.stack_widget.addItem(advanced_widg, 'Advanced Settings :')
