@@ -1,24 +1,21 @@
 # -*- coding: utf-8 -*-
-
-# Copyright © 2014-2018 GWHAT Project Contributors
-# https://github.com/jnsebgosselin/gwhat
+# -----------------------------------------------------------------------------
+# Copyright © Climate Data Preprocessing Tool Project Contributors
+# https://github.com/cgq-qgc/climate-data-preprocessing-tool
 #
-# This file is part of GWHAT (Ground-Water Hydrograph Analysis Toolbox).
+# This file is part of Climate Data Preprocessing Tool.
 # Licensed under the terms of the GNU General Public License.
+# -----------------------------------------------------------------------------
 
-# ---- Imports: standard libraries
-
+# ---- Standard imports
 from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
-import csv
 import time
-import os
 import os.path as osp
+from io import StringIO
 
-
-# ---- Imports: third parties
-
-import numpy as np
+# ---- Third party imports
+import pandas as pd
 from PyQt5.QtCore import QObject
 from PyQt5.QtCore import pyqtSignal as QSignal
 
@@ -27,8 +24,7 @@ from PyQt5.QtCore import pyqtSignal as QSignal
 from cdprep.config.main import CONFIG_DIR
 from cdprep.utils.maths import calc_dist_from_coord
 from cdprep.dwnld_data.weather_stationlist import WeatherSationList
-DATABASE_FILEPATH = osp.join(CONFIG_DIR, 'climate_station_database.npy')
-MAX_FAILED_FETCH_TRY = 3
+
 PROV_NAME_ABB = [('ALBERTA', 'AB'),
                  ('BRITISH COLUMBIA', 'BC'),
                  ('MANITOBA', 'MB'),
@@ -42,73 +38,20 @@ PROV_NAME_ABB = [('ALBERTA', 'AB'),
                  ('QUEBEC', 'QC'),
                  ('SASKATCHEWAN', 'SK'),
                  ('YUKON TERRITORY', 'YT')]
-
-
+DATABASE_FILEPATH = osp.join(CONFIG_DIR, 'Station Inventory EN.csv')
+MAX_FAILED_FETCH_TRY = 3
 URL_TOR = ("ftp://client_climate@ftp.tor.ec.gc.ca/" +
            "Pub/Get_More_Data_Plus_de_donnees/Station%20Inventory%20EN.csv")
 
 
-def read_stationlist_from_tor():
+def fetch_stationlist_from_tor():
     """"Read and format the `Station Inventory En.csv` file from Tor ftp."""
     try:
-        data = urlopen(URL_TOR).read()
+        with open(DATABASE_FILEPATH, 'wb') as local_file:
+            local_file.write(urlopen(URL_TOR).read())
+        return True
     except (HTTPError, URLError):
-        return None
-    try:
-        data = data.decode('utf-8-sig').splitlines()
-    except (UnicodeDecodeError, UnicodeError):
-        return None
-    data = list(csv.reader(data, delimiter=','))
-
-    FIELDS_KEYS_TYPE = [('Name', 'Name', str),
-                        ('Province', 'Province', str),
-                        ('Climate ID', 'ID', str),
-                        ('Station ID', 'Station ID', str),
-                        ('DLY First Year', 'DLY First Year', int),
-                        ('DLY Last Year', 'DLY Last Year', int),
-                        ('Latitude (Decimal Degrees)', 'Latitude', float),
-                        ('Longitude (Decimal Degrees)', 'Longitude', float),
-                        ('Elevation (m)', 'Elevation', float)]
-
-    df = {}
-    columns = None
-    for i, row in enumerate(data):
-        if len(row) == 0:
-            continue
-        if row[0] == 'Name':
-            columns = row
-            data = np.array(data[i+1:])
-
-            # Remove stations with no daily data
-            hly_first_year = data[:, columns.index('DLY First Year')]
-            data = data[~(hly_first_year == ''), :]
-
-            break
-    else:
-        return None
-
-    for field, key, atype in FIELDS_KEYS_TYPE:
-        arr = data[:, columns.index(field)]
-        if atype == float:
-            arr[arr == ''] = np.nan
-        else:
-            arr[arr == ''] = 'NA'
-        df[key] = arr.astype(atype)
-
-    # Sanitarize station name.
-    for i in range(len(df['Name'])):
-        df['Name'][i].replace('\\', ' ').replace('/', ' ')
-
-    # Determine station status.
-    df['Status'] = np.zeros(len(df['Name'])).astype(str)
-    df['Status'][df['DLY Last Year'] >= 2017] = 'Active'
-    df['Status'][df['DLY Last Year'] < 2017] = 'Closed'
-
-    # Format province value.
-    for name, abb in PROV_NAME_ABB:
-        df['Province'][df['Province'] == name] = abb
-
-    return df
+        return False
 
 
 class WeatherStationFinder(QObject):
@@ -129,13 +72,25 @@ class WeatherStationFinder(QObject):
         Load the climate station list from a file if it exist or else fetch it
         from ECCC Tor ftp server.
         """
-        if os.path.exists(DATABASE_FILEPATH):
+        if osp.exists(DATABASE_FILEPATH):
             self.sig_progress_msg.emit(
                 "Loading the climate station database from file.")
-            ts = time.time()
-            self._data = np.load(DATABASE_FILEPATH, allow_pickle=True).item()
-            te = time.time()
-            print("Station list loaded sucessfully in %0.2f sec." % (te-ts))
+            self._data = pd.read_csv(
+                DATABASE_FILEPATH, encoding='utf-8-sig', skiprows=2,
+                dtype={'DLY First Year': pd.Int64Dtype(),
+                       'DLY Last Year': pd.Int64Dtype(),
+                       'Latitude (Decimal Degrees)': float,
+                       'Longitude (Decimal Degrees)': float,
+                       'Elevation (m)': float})
+
+            # Remove stations with no daily data.
+            self._data = self._data[self._data['DLY First Year'].notna()]
+
+            # Format provinces and set index to 'Climate ID'.
+            self._data['Province'] = self._data['Province'].apply(
+                lambda x: x.title())
+            self._data = self._data.set_index('Climate ID', drop=True)
+
             self.sig_load_database_finished.emit(True)
         else:
             self.fetch_database()
@@ -148,69 +103,58 @@ class WeatherStationFinder(QObject):
         print("Fetching station list from ECCC Tor ftp server...")
         ts = time.time()
         self._data = None
-        failed_fetch_try = 0
-        while True:
-            self.sig_progress_msg.emit("Fetching the climate station database"
-                                       " from the ECCC server...")
-            self._data = read_stationlist_from_tor()
-            if self._data is None:
-                failed_fetch_try += 1
-                if failed_fetch_try <= MAX_FAILED_FETCH_TRY:
-                    print("Failed to fetch the database from "
-                          " the ECCC server (%d/%d)."
-                          % (failed_fetch_try, MAX_FAILED_FETCH_TRY))
-                    time.sleep(3)
-                else:
-                    msg = "Failed to fetch the database from the ECCC server."
-                    print(msg)
-                    self.sig_progress_msg.emit(msg)
-                    break
+        self.sig_progress_msg.emit(
+            "Fetching the climate station database from the ECCC server...")
+        for i in range(MAX_FAILED_FETCH_TRY):
+            if fetch_stationlist_from_tor() is False:
+                print("Failed to fetch the database from "
+                      " the ECCC server (%d/%d)."
+                      % (i + 1, MAX_FAILED_FETCH_TRY))
+                time.sleep(3)
             else:
-                np.save(DATABASE_FILEPATH, self._data)
                 te = time.time()
                 print("Station list fetched sucessfully in %0.2f sec."
                       % (te-ts))
+                self.load_database()
                 break
-        self.sig_load_database_finished.emit(True)
+        else:
+            msg = "Failed to fetch the database from the ECCC server."
+            print(msg)
+            self.sig_progress_msg.emit(msg)
+            self.sig_load_database_finished.emit(False)
 
-    def get_stationlist(self, status=None, prov=None, prox=None, yrange=None):
+    def get_stationlist(self, prov=None, prox=None, yrange=None):
         """
         Return a list of the stations in the ECCC database that
         fulfill the conditions specified in arguments.
         """
-        N = len(self.data['Name'])
-        results = np.ones(N)
+        stationdata = self._data.copy()
         if prov:
-            results = results * np.isin(self.data['Province'], prov)
-        if status:
-            results = results * (self.data['Status'] == status)
+            stationdata = stationdata[stationdata['Province'].isin(prov)]
         if prox:
             lat1, lon1, max_dist = prox
-            lat2, lon2 = self.data['Latitude'], self.data['Longitude']
+            lat2 = stationdata['Latitude (Decimal Degrees)'].values
+            lon2 = stationdata['Longitude (Decimal Degrees)'].values
             dists = calc_dist_from_coord(lat1, lon1, lat2, lon2)
-            results = results * (dists <= max_dist)
+            stationdata = stationdata[dists <= max_dist]
         if yrange:
-            arr_ymin = np.max(np.vstack([self.data['DLY First Year'],
-                                         np.ones(N)*yrange[0]]), axis=0)
-            arr_ymax = np.min(np.vstack([self.data['DLY Last Year'],
-                                         np.ones(N)*yrange[1]]), axis=0)
-            results = results * ((arr_ymax-arr_ymin+1) >= yrange[2])
+            arr_ymin = stationdata['DLY First Year'].apply(
+                lambda x: max(x, yrange[0]))
+            arr_ymax = stationdata['DLY Last Year'].apply(
+                lambda x: min(x, yrange[1]))
+            arr_nyear = arr_ymax - arr_ymin + 1
 
-        indexes = np.where(results == 1)[0]
-        stations = np.vstack((self.data['Name'][indexes],
-                              self.data['Station ID'][indexes],
-                              self.data['DLY First Year'][indexes],
-                              self.data['DLY Last Year'][indexes],
-                              self.data['Province'][indexes],
-                              self.data['ID'][indexes],
-                              self.data['Latitude'][indexes],
-                              self.data['Longitude'][indexes],
-                              self.data['Elevation'][indexes],
-                              )).transpose().tolist()
+            stationdata = stationdata[arr_nyear >= yrange[2]]
 
+        stationdata = stationdata.reset_index()
+        stationdata = stationdata[
+            ['Name', 'Station ID', 'DLY First Year', 'DLY Last Year',
+             'Province', 'Climate ID',
+             'Latitude (Decimal Degrees)', 'Longitude (Decimal Degrees)',
+             'Elevation (m)']
+            ].values.tolist()
         stationlist = WeatherSationList()
-        stationlist.add_stations(stations)
-
+        stationlist.add_stations(stationdata)
         return stationlist
 
 
