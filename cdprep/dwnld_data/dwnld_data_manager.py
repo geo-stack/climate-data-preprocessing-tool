@@ -206,10 +206,11 @@ class WeatherStationDownloader(QWidget):
 
         subgrid1 = QGridLayout()
         subgrid1.setContentsMargins(0, 0, 0, 0)
-        subgrid1.addWidget(QLabel('Data available for at least:'), 0, 0)
+        subgrid1.addWidget(QLabel('for at least'), 0, 0)
         subgrid1.addWidget(self.nbrYear, 0, 1)
         subgrid1.addWidget(QLabel('year(s)'), 0, 2)
         subgrid1.setColumnStretch(3, 100)
+        subgrid1.setHorizontalSpacing(5)
 
         # Year range
         self.minYear = QSpinBox()
@@ -235,12 +236,13 @@ class WeatherStationDownloader(QWidget):
         self.maxYear.valueChanged.connect(self.maxYear_changed)
 
         subgrid2 = QGridLayout()
-        subgrid2.addWidget(QLabel('Data available between:'), 0, 0)
+        subgrid2.addWidget(QLabel('between'), 0, 0)
         subgrid2.addWidget(self.minYear, 0, 1)
         subgrid2.addWidget(label_and, 0, 2)
         subgrid2.addWidget(self.maxYear, 0, 3)
         subgrid2.setContentsMargins(0, 0, 0, 0)
-        subgrid2.setColumnStretch(0, 100)
+        subgrid2.setColumnStretch(4, 100)
+        subgrid2.setHorizontalSpacing(5)
 
         # Subgridgrid assembly
         self.year_widg = QGroupBox("Data Availability filter")
@@ -250,9 +252,12 @@ class WeatherStationDownloader(QWidget):
         self.year_widg.toggled.connect(self.search_filters_changed)
 
         grid = QGridLayout(self.year_widg)
+        grid.setRowMinimumHeight(0, 10)
+        grid.addWidget(QLabel('Search for stations with data available'), 1, 0)
         grid.addLayout(subgrid1, 2, 0)
-        grid.addLayout(subgrid2, 1, 0)
-        grid.setRowStretch(3, 100)
+        grid.addLayout(subgrid2, 3, 0)
+        grid.setRowStretch(4, 100)
+        grid.setVerticalSpacing(8)
 
         # Setup the toolbar.
         self.btn_addSta = QPushButton('Add')
@@ -280,14 +285,8 @@ class WeatherStationDownloader(QWidget):
             "the ECCC ftp server.")
         btn_fetch.clicked.connect(self.btn_fetch_isClicked)
 
-        self.keeprawfiles_checkbox = QCheckBox(
-            "Keep original raw data files")
-        self.keeprawfiles_checkbox.setChecked(
-            CONF.get("weather_data_download_tool", 'keep_raw_files', True))
-
         toolbar_widg = QWidget()
         toolbar_grid = QGridLayout(toolbar_widg)
-        toolbar_grid.addWidget(self.keeprawfiles_checkbox, 1, 0)
         toolbar_grid.addWidget(self.btn_addSta, 1, 1)
         toolbar_grid.addWidget(btn_save, 1, 2)
         toolbar_grid.addWidget(btn_fetch, 1, 3)
@@ -331,9 +330,9 @@ class WeatherStationDownloader(QWidget):
     @property
     def prov(self):
         if self.prov_widg.currentIndex() == 0:
-            return self.PROV_ABB
+            return self.PROV_NAME
         else:
-            return self.PROV_ABB[self.prov_widg.currentIndex()-1]
+            return [self.PROV_NAME[self.prov_widg.currentIndex()-1]]
 
     @property
     def lat(self):
@@ -454,10 +453,6 @@ class WeatherStationDownloader(QWidget):
         self.move(qr.topLeft())
 
     def closeEvent(self, event):
-        CONF.set(
-            'weather_data_download_tool', 'keep_raw_files',
-            self.keeprawfiles_checkbox.isChecked())
-
         # Proximity Filter Options.
         CONF.set(
             'weather_data_download_tool', 'proximity_filter',
@@ -679,13 +674,6 @@ class WeatherStationDownloader(QWidget):
             with open(filepath, 'w', encoding='utf-8') as f:
                 writer = csv.writer(f, delimiter=',', lineterminator='\n')
                 writer.writerows(fcontent)
-
-            # Delete all raw data files if the option is checked.
-            if not self.keeprawfiles_checkbox.isChecked():
-                print('Deleting raw data files for station {}.'
-                      .format(station_metadata[0]))
-                delete_folder_recursively(osp.dirname(file_list[0]))
-
         self.download_next_station()
 
 

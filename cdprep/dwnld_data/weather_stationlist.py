@@ -140,10 +140,15 @@ class WeatherSationView(QTableView):
         self.populate_table(WeatherSationList())
 
         self.setItemDelegateForColumn(0, CheckBoxDelegate(self))
+
+        margin = 24
         self.setColumnWidth(0, 32)
-        self.setColumnWidth(3, 75)
-        self.setColumnWidth(4, 75)
-        self.setColumnWidth(5, 75)
+        self.setColumnWidth(3, self.fontMetrics().width('2010') + margin)
+        self.setColumnWidth(4, self.fontMetrics().width('2010') + margin)
+        self.setColumnWidth(
+            5, self.fontMetrics().width('NORTHWEST TERRITORIES') + margin)
+        self.setColumnWidth(
+            6, self.fontMetrics().width('504K0NM') + margin)
         self.setColumnHidden(7, True)
         self.setColumnHidden(8, True)
         self.setColumnHidden(9, True)
@@ -380,7 +385,7 @@ class CheckBoxDelegate(QStyledItemDelegate):
     def getCheckBoxRect(self, option):
         """Calculate the size and position of the checkbox."""
         cb_rect = QApplication.style().subElementRect(
-                QStyle.SE_CheckBoxIndicator, QStyleOptionButton(), None)
+            QStyle.SE_CheckBoxIndicator, QStyleOptionButton(), None)
         x = option.rect.x() + option.rect.width()/2 - cb_rect.width()/2
         y = option.rect.y() + option.rect.height()/2 - cb_rect.height()/2
 
