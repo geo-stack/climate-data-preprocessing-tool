@@ -285,14 +285,8 @@ class WeatherStationDownloader(QWidget):
             "the ECCC ftp server.")
         btn_fetch.clicked.connect(self.btn_fetch_isClicked)
 
-        self.keeprawfiles_checkbox = QCheckBox(
-            "Keep original raw data files")
-        self.keeprawfiles_checkbox.setChecked(
-            CONF.get("weather_data_download_tool", 'keep_raw_files', True))
-
         toolbar_widg = QWidget()
         toolbar_grid = QGridLayout(toolbar_widg)
-        toolbar_grid.addWidget(self.keeprawfiles_checkbox, 1, 0)
         toolbar_grid.addWidget(self.btn_addSta, 1, 1)
         toolbar_grid.addWidget(btn_save, 1, 2)
         toolbar_grid.addWidget(btn_fetch, 1, 3)
@@ -459,10 +453,6 @@ class WeatherStationDownloader(QWidget):
         self.move(qr.topLeft())
 
     def closeEvent(self, event):
-        CONF.set(
-            'weather_data_download_tool', 'keep_raw_files',
-            self.keeprawfiles_checkbox.isChecked())
-
         # Proximity Filter Options.
         CONF.set(
             'weather_data_download_tool', 'proximity_filter',
@@ -684,13 +674,6 @@ class WeatherStationDownloader(QWidget):
             with open(filepath, 'w', encoding='utf-8') as f:
                 writer = csv.writer(f, delimiter=',', lineterminator='\n')
                 writer.writerows(fcontent)
-
-            # Delete all raw data files if the option is checked.
-            if not self.keeprawfiles_checkbox.isChecked():
-                print('Deleting raw data files for station {}.'
-                      .format(station_metadata[0]))
-                delete_folder_recursively(osp.dirname(file_list[0]))
-
         self.download_next_station()
 
 
