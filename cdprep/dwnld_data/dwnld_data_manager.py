@@ -206,10 +206,11 @@ class WeatherStationDownloader(QWidget):
 
         subgrid1 = QGridLayout()
         subgrid1.setContentsMargins(0, 0, 0, 0)
-        subgrid1.addWidget(QLabel('Data available for at least:'), 0, 0)
+        subgrid1.addWidget(QLabel('for at least'), 0, 0)
         subgrid1.addWidget(self.nbrYear, 0, 1)
         subgrid1.addWidget(QLabel('year(s)'), 0, 2)
         subgrid1.setColumnStretch(3, 100)
+        subgrid1.setHorizontalSpacing(5)
 
         # Year range
         self.minYear = QSpinBox()
@@ -235,12 +236,13 @@ class WeatherStationDownloader(QWidget):
         self.maxYear.valueChanged.connect(self.maxYear_changed)
 
         subgrid2 = QGridLayout()
-        subgrid2.addWidget(QLabel('Data available between:'), 0, 0)
+        subgrid2.addWidget(QLabel('between'), 0, 0)
         subgrid2.addWidget(self.minYear, 0, 1)
         subgrid2.addWidget(label_and, 0, 2)
         subgrid2.addWidget(self.maxYear, 0, 3)
         subgrid2.setContentsMargins(0, 0, 0, 0)
-        subgrid2.setColumnStretch(0, 100)
+        subgrid2.setColumnStretch(4, 100)
+        subgrid2.setHorizontalSpacing(5)
 
         # Subgridgrid assembly
         self.year_widg = QGroupBox("Data Availability filter")
@@ -250,9 +252,12 @@ class WeatherStationDownloader(QWidget):
         self.year_widg.toggled.connect(self.search_filters_changed)
 
         grid = QGridLayout(self.year_widg)
+        grid.setRowMinimumHeight(0, 10)
+        grid.addWidget(QLabel('Search for stations with data available'), 1, 0)
         grid.addLayout(subgrid1, 2, 0)
-        grid.addLayout(subgrid2, 1, 0)
-        grid.setRowStretch(3, 100)
+        grid.addLayout(subgrid2, 3, 0)
+        grid.setRowStretch(4, 100)
+        grid.setVerticalSpacing(8)
 
         # Setup the toolbar.
         self.btn_addSta = QPushButton('Add')
