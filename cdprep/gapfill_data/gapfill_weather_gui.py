@@ -187,176 +187,53 @@ class WeatherDataGapfiller(QWidget):
 
         self.fillDates_widg.setLayout(fillDates_grid)
 
-        def station_sel_criteria(self):
-            # Widgets :
-
-            Nmax_label = QLabel('Nbr. of stations :')
-            self.Nmax = QSpinBox()
-            self.Nmax.setRange(0, 99)
-            self.Nmax.setSingleStep(1)
-            self.Nmax.setValue(4)
-            self.Nmax.setAlignment(Qt.AlignCenter)
-
-            ttip = ('<p>Distance limit beyond which neighboring stations'
-                    ' are excluded from the gapfilling procedure.</p>'
-                    '<p>This condition is ignored if set to -1.</p>')
-            distlimit_label = QLabel('Max. Distance :')
-            distlimit_label.setToolTip(ttip)
-            self.distlimit = QSpinBox()
-            self.distlimit.setRange(-1, 9999)
-            self.distlimit.setSingleStep(1)
-            self.distlimit.setValue(100)
-            self.distlimit.setToolTip(ttip)
-            self.distlimit.setSuffix(' km')
-            self.distlimit.setAlignment(Qt.AlignCenter)
-
-            ttip = ('<p>Altitude difference limit over which neighboring '
-                    ' stations are excluded from the gapfilling procedure.</p>'
-                    '<p>This condition is ignored if set to -1.</p>')
-            altlimit_label = QLabel('Max. Elevation Diff. :')
-            altlimit_label.setToolTip(ttip)
-            self.altlimit = QSpinBox()
-            self.altlimit.setRange(-1, 9999)
-            self.altlimit.setSingleStep(1)
-            self.altlimit.setValue(350)
-            self.altlimit.setToolTip(ttip)
-            self.altlimit.setSuffix(' m')
-            self.altlimit.setAlignment(Qt.AlignCenter)
-
-            # Layout :
-
-            container = QFrame()
-            grid = QGridLayout()
-
-            row = 0
-            grid.addWidget(self.Nmax, row, 1)
-            grid.addWidget(Nmax_label, row, 0)
-            row += 1
-            grid.addWidget(distlimit_label, row, 0)
-            grid.addWidget(self.distlimit, row, 1)
-            row += 1
-            grid.addWidget(altlimit_label, row, 0)
-            grid.addWidget(self.altlimit, row, 1)
-
-            grid.setContentsMargins(10, 0, 10, 0)  # [L, T, R, B]
-            grid.setColumnStretch(2, 500)
-            grid.setSpacing(10)
-            container.setLayout(grid)
-
-            return container
-
-        def regression_model(self):
-
-            # ---- Widgets ----
-
-            self.RMSE_regression = QRadioButton('Ordinary Least Squares')
-            self.RMSE_regression.setChecked(True)
-            self.ABS_regression = QRadioButton('Least Absolute Deviations')
-
-            # ---- Layout ----
-
-            container = QFrame()
-            grid = QGridLayout()
-
-            row = 0
-            grid.addWidget(self.RMSE_regression, row, 0)
-            row += 1
-            grid.addWidget(self.ABS_regression, row, 0)
-
-            grid.setSpacing(5)
-            grid.setContentsMargins(10, 0, 10, 0)  # (L, T, R, B)
-            container.setLayout(grid)
-
-            return container
-
-        def advanced_settings(self):
-
-            # ---- Row Full Error
-            self.full_error_analysis = QCheckBox('Full Error Analysis.')
-            self.full_error_analysis.setCheckState(Qt.Unchecked)
-
-            # Figure format and language.
-            self.fig_format = QComboBox()
-            self.fig_format.addItems(PostProcessErr.SUPPORTED_FIG_FORMATS)
-
-            self.fig_language = QComboBox()
-            self.fig_language.addItems(PostProcessErr.SUPPORTED_LANGUAGES)
-
-            fig_opt_layout = QGridLayout()
-            fig_opt_layout.addWidget(QLabel("Figure output format : "), 0, 0)
-            fig_opt_layout.addWidget(self.fig_format, 0, 2)
-            fig_opt_layout.addWidget(QLabel("Figure labels language : "), 1, 0)
-            fig_opt_layout.addWidget(self.fig_language, 1, 2)
-
-            fig_opt_layout.setContentsMargins(0, 0, 0, 0)
-            fig_opt_layout.setColumnStretch(1, 100)
-
-            # ---- Row Layout Assembly ----
-
-            container = QFrame()
-            grid = QGridLayout(container)
-
-            grid.addWidget(self.full_error_analysis, 0, 0)
-            grid.addLayout(fig_opt_layout, 2, 0)
-
-            grid.setSpacing(5)
-            grid.setContentsMargins(10, 0, 10, 0)
-            grid.setRowStretch(grid.rowCount(), 100)
-
-            return container
-
         # Setup the stacked widget.
-        cutoff_widg = station_sel_criteria(self)
-        MLRM_widg = regression_model(self)
-        advanced_widg = advanced_settings(self)
-
         self.stack_widget = ToolPanel()
         self.stack_widget.setIcons(
             get_icon('chevron_right'), get_icon('chevron_down'))
-        self.stack_widget.addItem(cutoff_widg, 'Stations Selection Criteria :')
-        self.stack_widget.addItem(MLRM_widg, 'Regression Model :')
-        self.stack_widget.addItem(advanced_widg, 'Advanced Settings :')
+        self.stack_widget.addItem(
+            self._create_station_selection_criteria(),
+            'Stations Selection Criteria')
+        self.stack_widget.addItem(
+            self._create_regression_model_settings(),
+            'Regression Model')
+        self.stack_widget.addItem(
+            self._create_advanced_settings(),
+            'Advanced Settings')
 
         # Setup the left panel.
-        self.LEFT_widget = QFrame()
-        grid_leftPanel = QGridLayout(self.LEFT_widget)
-        grid_leftPanel.addWidget(self.tarSta_widg, 0, 0)
-        grid_leftPanel.addWidget(self.fillDates_widg, 1, 0)
-        grid_leftPanel.addWidget(create_separator(Qt.Horizontal), 2, 0)
-        grid_leftPanel.addWidget(self.stack_widget, 3, 0)
-        grid_leftPanel.setRowStretch(4, 1)
-        grid_leftPanel.addWidget(widget_toolbar, 5, 0)
-        grid_leftPanel.setContentsMargins(0, 0, 0, 0)
+        self.left_panel = QFrame()
+        left_panel_layout = QGridLayout(self.left_panel)
+        left_panel_layout.addWidget(self.tarSta_widg, 0, 0)
+        left_panel_layout.addWidget(self.fillDates_widg, 1, 0)
+        left_panel_layout.addWidget(create_separator(Qt.Horizontal), 2, 0)
+        left_panel_layout.addWidget(self.stack_widget, 3, 0)
+        left_panel_layout.setRowStretch(4, 1)
+        left_panel_layout.addWidget(widget_toolbar, 5, 0)
+        left_panel_layout.setContentsMargins(0, 0, 0, 0)
 
         # Setup the right panel.
         self.FillTextBox = QTextEdit()
         self.FillTextBox.setReadOnly(True)
-#        self.FillTextBox.setFrameStyle(styleDB.frame)
         self.FillTextBox.setMinimumWidth(700)
-#        self.FillTextBox.setStyleSheet(
-#                                  "QTextEdit {background-color:transparent;}")
         self.FillTextBox.setFrameStyle(0)
         self.FillTextBox.document().setDocumentMargin(10)
 
         self.sta_display_summary = QTextEdit()
         self.sta_display_summary.setReadOnly(True)
-#        self.sta_display_summary.setStyleSheet(
-#                                  "QTextEdit {background-color:transparent;}")
         self.sta_display_summary.setFrameStyle(0)
         self.sta_display_summary.document().setDocumentMargin(10)
 
         self.gafill_display_table = GapFillDisplayTable()
 
-        RIGHT_widget = QTabWidget()
-        RIGHT_widget.addTab(self.FillTextBox, 'Correlation Coefficients')
-        RIGHT_widget.addTab(self.sta_display_summary, 'Missing Data Overview')
-#        RIGHT_widget.addTab(self.gafill_display_table,
-#                            'New Table (Work-in-Progress)')
+        right_panel = QTabWidget()
+        right_panel.addTab(self.FillTextBox, 'Correlation Coefficients')
+        right_panel.addTab(self.sta_display_summary, 'Missing Data Overview')
 
         # Setup the main grid.
         main_grid = QGridLayout(self)
-        main_grid.addWidget(self.LEFT_widget, 0, 0)
-        main_grid.addWidget(RIGHT_widget, 0, 1)
+        main_grid.addWidget(self.left_panel, 0, 0)
+        main_grid.addWidget(right_panel, 0, 1)
         main_grid.setColumnStretch(1, 500)
         main_grid.setRowStretch(0, 500)
 
@@ -378,6 +255,97 @@ class WeatherDataGapfiller(QWidget):
         # GAPFILL :
         self.btn_fill.clicked.connect(self.gap_fill_btn_clicked)
         self.btn_fill_all.clicked.connect(self.gap_fill_btn_clicked)
+
+    def _create_station_selection_criteria(self):
+        Nmax_label = QLabel('Nbr. of stations :')
+        self.Nmax = QSpinBox()
+        self.Nmax.setRange(0, 99)
+        self.Nmax.setSingleStep(1)
+        self.Nmax.setValue(4)
+        self.Nmax.setAlignment(Qt.AlignCenter)
+
+        ttip = ('<p>Distance limit beyond which neighboring stations'
+                ' are excluded from the gapfilling procedure.</p>'
+                '<p>This condition is ignored if set to -1.</p>')
+        distlimit_label = QLabel('Max. Distance :')
+        distlimit_label.setToolTip(ttip)
+        self.distlimit = QSpinBox()
+        self.distlimit.setRange(-1, 9999)
+        self.distlimit.setSingleStep(1)
+        self.distlimit.setValue(100)
+        self.distlimit.setToolTip(ttip)
+        self.distlimit.setSuffix(' km')
+        self.distlimit.setAlignment(Qt.AlignCenter)
+
+        ttip = ('<p>Altitude difference limit over which neighboring '
+                ' stations are excluded from the gapfilling procedure.</p>'
+                '<p>This condition is ignored if set to -1.</p>')
+        altlimit_label = QLabel('Max. Elevation Diff. :')
+        altlimit_label.setToolTip(ttip)
+        self.altlimit = QSpinBox()
+        self.altlimit.setRange(-1, 9999)
+        self.altlimit.setSingleStep(1)
+        self.altlimit.setValue(350)
+        self.altlimit.setToolTip(ttip)
+        self.altlimit.setSuffix(' m')
+        self.altlimit.setAlignment(Qt.AlignCenter)
+
+        # Setup the main layout.
+        widget = QFrame()
+        layout = QGridLayout(widget)
+
+        layout.addWidget(self.Nmax, 0, 1)
+        layout.addWidget(Nmax_label, 0, 0)
+        layout.addWidget(distlimit_label, 1, 0)
+        layout.addWidget(self.distlimit, 1, 1)
+        layout.addWidget(altlimit_label, 2, 0)
+        layout.addWidget(self.altlimit, 2, 1)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setColumnStretch(2, 500)
+
+        return widget
+
+    def _create_advanced_settings(self):
+        self.full_error_analysis = QCheckBox('Full Error Analysis.')
+        self.full_error_analysis.setChecked(True)
+
+        self.fig_format = QComboBox()
+        self.fig_format.addItems(PostProcessErr.SUPPORTED_FIG_FORMATS)
+
+        self.fig_language = QComboBox()
+        self.fig_language.addItems(PostProcessErr.SUPPORTED_LANGUAGES)
+
+        fig_opt_layout = QGridLayout()
+        fig_opt_layout.addWidget(QLabel("Figure output format : "), 0, 0)
+        fig_opt_layout.addWidget(self.fig_format, 0, 2)
+        fig_opt_layout.addWidget(QLabel("Figure labels language : "), 1, 0)
+        fig_opt_layout.addWidget(self.fig_language, 1, 2)
+
+        fig_opt_layout.setContentsMargins(0, 0, 0, 0)
+        fig_opt_layout.setColumnStretch(1, 100)
+
+        # Setup the main layout.
+        widget = QFrame()
+        layout = QGridLayout(widget)
+        layout.addWidget(self.full_error_analysis, 0, 0)
+        layout.addLayout(fig_opt_layout, 2, 0)
+        layout.setRowStretch(layout.rowCount(), 100)
+        layout.setContentsMargins(10, 0, 10, 0)
+
+        return widget
+
+    def _create_regression_model_settings(self):
+        self.RMSE_regression = QRadioButton('Ordinary Least Squares')
+        self.RMSE_regression.setChecked(True)
+        self.ABS_regression = QRadioButton('Least Absolute Deviations')
+
+        widget = QFrame()
+        layout = QGridLayout(widget)
+        layout.addWidget(self.RMSE_regression, 0, 0)
+        layout.addWidget(self.ABS_regression, 1, 0)
+        layout.setContentsMargins(10, 0, 10, 0)
+
+        return widget
 
     @property
     def workdir(self):
