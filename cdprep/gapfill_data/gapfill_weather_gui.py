@@ -168,24 +168,13 @@ class WeatherDataGapfiller(QWidget):
         self.date_end_widget.setDisplayFormat('dd / MM / yyyy')
 
         self.fillDates_widg = QWidget()
-        fillDates_grid = QGridLayout()
-
-        row = 0
-        col = 0
-        fillDates_grid.addWidget(label_From, row, col)
-        col += 1
-        fillDates_grid.addWidget(self.date_start_widget, row, col)
-        row += 1
-        col = 0
-        fillDates_grid.addWidget(label_To, row, col)
-        col += 1
-        fillDates_grid.addWidget(self.date_end_widget, row, col)
-
-        fillDates_grid.setColumnStretch(row+1, 500)
-        fillDates_grid.setContentsMargins(0, 0, 0, 0)
-        fillDates_grid.setSpacing(10)
-
-        self.fillDates_widg.setLayout(fillDates_grid)
+        gapfilldates_layout = QGridLayout(self.fillDates_widg)
+        gapfilldates_layout.addWidget(label_From, 0, 0)
+        gapfilldates_layout.addWidget(self.date_start_widget, 0, 1)
+        gapfilldates_layout.addWidget(label_To, 1, 0)
+        gapfilldates_layout.addWidget(self.date_end_widget, 1, 1)
+        gapfilldates_layout.setColumnStretch(2, 1)
+        gapfilldates_layout.setContentsMargins(0, 0, 0, 0)
 
         # Setup the stacked widget.
         self.stack_widget = ToolPanel()
@@ -436,7 +425,7 @@ class WeatherDataGapfiller(QWidget):
             self.date_end_widget.setMinimumDate(DateMin)
             self.date_end_widget.setMaximumDate(DateMax)
 
-    def correlation_table_display(self):  # ===================================
+    def correlation_table_display(self):
 
         """
         This method plot the table in the display area. It is separated from
