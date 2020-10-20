@@ -336,9 +336,9 @@ class WeatherStationDownloader(QWidget):
     @property
     def prov(self):
         if self.prov_widg.currentIndex() == 0:
-            return self.PROV_ABB
+            return self.PROV_NAME
         else:
-            return self.PROV_ABB[self.prov_widg.currentIndex()-1]
+            return [self.PROV_NAME[self.prov_widg.currentIndex()-1]]
 
     @property
     def lat(self):
