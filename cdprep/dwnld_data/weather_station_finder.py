@@ -12,7 +12,6 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 import time
 import os.path as osp
-from io import StringIO
 
 # ---- Third party imports
 import pandas as pd
