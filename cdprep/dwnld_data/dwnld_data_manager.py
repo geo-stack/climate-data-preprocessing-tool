@@ -17,6 +17,7 @@ from time import gmtime, sleep
 from urllib.request import URLError, urlopen
 
 # ---- Third party imports
+from appconfigs.base import get_home_dir
 import numpy as np
 import pandas as pd
 from PyQt5.QtCore import pyqtSignal as QSignal
@@ -25,18 +26,15 @@ from PyQt5.QtCore import Qt, QPoint, QThread, QSize, QObject
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QDoubleSpinBox, QComboBox, QFrame, QGridLayout, QSpinBox,
     QPushButton, QDesktopWidget, QApplication, QFileDialog, QGroupBox, QStyle,
-    QMessageBox, QProgressBar, QCheckBox)
+    QMessageBox, QProgressBar)
 
 # ---- Local imports
 from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
-from cdprep.config.ospath import (
-    get_select_file_dialog_dir, set_select_file_dialog_dir)
 from cdprep.widgets.waitingspinner import QWaitingSpinner
 from cdprep.dwnld_data.weather_stationlist import WeatherSationView
 from cdprep.dwnld_data.weather_station_finder import (
     WeatherStationFinder, PROV_NAME_ABB)
-from cdprep.utils.ospath import delete_folder_recursively
 
 
 class WaitSpinnerBar(QWidget):
@@ -101,6 +99,8 @@ class WeatherStationDownloader(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.workdir = get_home_dir()
+
         self.stn_finder_worker = WeatherStationFinder()
         self.stn_finder_worker.sig_load_database_finished.connect(
             self.receive_load_database)
@@ -562,19 +562,12 @@ class WeatherStationDownloader(QWidget):
                 QMessageBox.Ok)
             return
 
-        # Select the download folder.
-        dirname = QFileDialog().getExistingDirectory(
-            self, 'Choose Download Folder', get_select_file_dialog_dir())
-        if not dirname:
-            return
-        set_select_file_dialog_dir(dirname)
-
         # Update the UI.
         self.progressbar.show()
         self.btn_download.setIcon(get_icon('stop'))
 
         # Set thread working directory.
-        self.dwnld_worker.dirname = dirname
+        self.dwnld_worker.dirname = self.workdir
 
         # Start downloading data.
         self.download_next_station()
