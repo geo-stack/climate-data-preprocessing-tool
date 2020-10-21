@@ -50,6 +50,9 @@ FA_ICONS = {
     'save': [
         ('fa.save',),
         {'color': ICON_COLOR}],
+    'search_weather_data': [
+        ('mdi.cloud-search-outline',),
+        {'color': ICON_COLOR}],
     'stop': [
         ('mdi.stop-circle-outline',),
         {'color': RED}],
