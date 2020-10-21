@@ -36,6 +36,7 @@ from cdprep.gapfill_data.gapfill_weather_algorithm import GapFillWeather
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.widgets.toolpanel import ToolPanel
+from cdprep.utils.ospath import delete_file
 from cdprep.utils.qthelpers import create_separator
 # from gwhat.meteo.weather_reader import add_PET_to_weather_datafile
 # from gwhat.common import StyleDB
@@ -338,9 +339,8 @@ class WeatherDataGapfiller(QWidget):
 
     def set_workdir(self, dirname):
         self.__workdir = dirname
-        self.gapfill_worker.inputDir = os.path.join(dirname, 'Meteo', 'Input')
+        self.gapfill_worker.inputDir = dirname
         self.gapfill_worker.outputDir = osp.join(dirname, 'Meteo', 'Output')
-
         self.wxdata_merger.set_workdir(os.path.join(dirname, 'Meteo', 'Input'))
 
     def delete_current_dataset(self):
@@ -354,16 +354,16 @@ class WeatherDataGapfiller(QWidget):
             dirname = self.gapfill_worker.inputDir
             filename = os.path.join(dirname, basename)
             delete_file(filename)
-            self.load_data_dir_content(reload=True)
+            self.load_data_dir_content()
 
     def btn_refresh_isclicked(self):
         """
         Handles when the button to refresh the list of input daily weather
         datafiles is clicked
         """
-        self.load_data_dir_content(reload=True)
+        self.load_data_dir_content()
 
-    def load_data_dir_content(self, reload=False):
+    def load_data_dir_content(self):
         """
         Initiate the loading of weater data files contained in the
         */Meteo/Input folder and display the resulting station list in the
@@ -382,10 +382,8 @@ class WeatherDataGapfiller(QWidget):
         self.CORRFLAG = 'off'
         # Correlation calculation won't be triggered when this is off
 
-        if reload:
-            stanames = self.gapfill_worker.reload_data()
-        else:
-            stanames = self.gapfill_worker.load_data()
+        # Load data and fill UI with info.
+        stanames = self.gapfill_worker.load_data()
         stanames = [] if stanames is None else stanames
 
         self.target_station.addItems(stanames)

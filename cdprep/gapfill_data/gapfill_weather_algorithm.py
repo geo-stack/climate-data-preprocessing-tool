@@ -107,7 +107,7 @@ class GapFillWeather(QObject):
                              ' with a value greater than 0.')
         self.__NSTAmax = x
 
-    def load_data(self, force_reload=False):
+    def load_data(self):
         """
         Read the csv files in the input data directory folder.
         """
@@ -121,8 +121,8 @@ class GapFillWeather(QObject):
         filepaths = [
             osp.join(self.inputDir, f) for
             f in os.listdir(self.inputDir) if f.endswith('.csv')]
-        print('\n%d csv files were found in %s.' %
-              (len(filepaths, self.inputDir)))
+        print('{:d} csv files were found in {}.'.format(
+            len(filepaths), self.inputDir))
 
         print('Loading data from csv files...')
         self.target = None
