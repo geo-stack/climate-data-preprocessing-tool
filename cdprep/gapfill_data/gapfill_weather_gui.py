@@ -451,9 +451,8 @@ class WeatherDataGapfiller(QWidget):
                 self.gapfill_worker.get_target_station()['Station Name']))
             self.correlation_table_display()
 
-    def restoreUI(self):  # ===================================================
-
-        self.btn_fill.setIcon(icons.get_icon('fill_data'))
+    def restore_gui(self):
+        self.btn_fill.setIcon(get_icon('fill_data'))
         self.btn_fill.setEnabled(True)
 
         self.btn_fill_all.setIcon(get_icon('fill_all_data'))
@@ -464,9 +463,7 @@ class WeatherDataGapfiller(QWidget):
         self.stack_widget.setEnabled(True)
 
         self.pbar.setValue(0)
-
         QApplication.processEvents()
-
         self.pbar.hide()
 
     def get_gapfill_parameters(self):
@@ -588,7 +585,7 @@ class WeatherDataGapfiller(QWidget):
                 # sucessfully for all the weather stations in the list.
                 self.gapfill_worker.STOP = False
                 self.isFillAll_inProgress = False
-                self.restoreUI()
+                self.restore_gui()
             else:
                 self.gap_fill_start(sta_indx2fill)
         else:
@@ -596,7 +593,7 @@ class WeatherDataGapfiller(QWidget):
             # The gapfilling routine was stopped from the UI.
             self.gapfill_worker.STOP = False
             self.isFillAll_inProgress = False
-            self.restoreUI()
+            self.restore_gui()
 
     def gap_fill_start(self, sta_indx2fill):
 
