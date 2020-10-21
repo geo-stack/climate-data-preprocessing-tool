@@ -137,25 +137,20 @@ class WeatherDataGapfiller(QWidget):
         widgets = [self.target_station, self.btn_refresh_staList,
                    btn_merge_data, self.btn_delete_data]
 
-        # Generate the layout for the target station group widget.
-
         self.tarSta_widg = QWidget()
-        tarSta_grid = QGridLayout(self.tarSta_widg)
+        target_station_layout = QGridLayout(self.tarSta_widg)
+        target_station_layout.setHorizontalSpacing(1)
+        target_station_layout.setColumnStretch(0, 1)
+        target_station_layout.setContentsMargins(0, 0, 0, 10)
 
-        row = 0
-        tarSta_grid.addWidget(QLabel('<b>Fill data for weather station :</b>'),
-                              row, 0, 1, len(widgets))
-        row += 1
-        tarSta_grid.addWidget(self.target_station, 1, 0)
+        target_station_layout.addWidget(
+            QLabel('<b>Fill data for weather station :</b>'),
+            0, 0, 1, len(widgets))
+        target_station_layout.addWidget(self.target_station, 1, 0)
         for col, widget in enumerate(widgets):
-            tarSta_grid.addWidget(widget, row, col)
-        row += 1
-        tarSta_grid.addWidget(self.target_station_info,
-                              row, 0, 1, len(widgets))
-
-        tarSta_grid.setSpacing(5)
-        tarSta_grid.setColumnStretch(0, 500)
-        tarSta_grid.setContentsMargins(0, 0, 0, 10)
+            target_station_layout.addWidget(widget, 1, col)
+        target_station_layout.addWidget(
+            self.target_station_info, 2, 0, 1, len(widgets))
 
         # Setup the gapfill dates.
         label_From = QLabel('From :  ')
