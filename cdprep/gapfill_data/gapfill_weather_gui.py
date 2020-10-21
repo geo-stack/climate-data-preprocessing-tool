@@ -476,7 +476,7 @@ class WeatherDataGapfiller(QWidget):
         self.btn_fill.setIcon(icons.get_icon('fill_data'))
         self.btn_fill.setEnabled(True)
 
-        self.btn_fill_all.setIcon(icons.get_icon('fill_all_data'))
+        self.btn_fill_all.setIcon(get_icon('fill_all_data'))
         self.btn_fill_all.setEnabled(True)
 
         self.tarSta_widg.setEnabled(True)
@@ -569,7 +569,7 @@ class WeatherDataGapfiller(QWidget):
 
         # -- Disable UI and continue the process normally --
 
-        button.setIcon(icons.get_icon('stop'))
+        button.setIcon(get_icon('stop'))
         self.fillDates_widg.setEnabled(False)
         self.tarSta_widg.setEnabled(False)
         self.stack_widget.setEnabled(False)
@@ -639,8 +639,7 @@ class WeatherDataGapfiller(QWidget):
 
         # -- Pass information to the worker --
 
-        self.gapfill_worker.outputDir = os.path.join(
-                self.workdir, "Meteo", "Output")
+        self.gapfill_worker.outputDir = osp.join(self.workdir, "Filled")
         self.gapfill_worker.fig_format = self.fig_format.currentText()
         self.gapfill_worker.fig_language = self.fig_language.currentText()
 
@@ -665,7 +664,7 @@ class WeatherDataGapfiller(QWidget):
 
         try:
             self.gapfill_thread.started.disconnect(
-                    self.gapfill_worker.fill_data)
+                self.gapfill_worker.fill_data)
         except TypeError:
             # self.gapfill_worker.fill_data is not connected
             pass
@@ -706,302 +705,16 @@ class StaLocManager(QWidget):
         ax.annotate(name, xy=(lon, lat), textcoords='data')
 
 
-# =============================================================================
-
-
-def correlation_table_generation(TARGET, WEATHER, FILLPARAM):
-    """
-    This fucntion generate an HTML output to be displayed in the
-    <Fill Data> tab display area after a target station has been
-    selected by the user.
-    """
-
-    STANAME = WEATHER.STANAME
-
-    nSTA = len(STANAME)
-    nVAR = len(WEATHER.VARNAME)
-    Ndata_limit = int(365 / 2.)
-
-    limitDist = FILLPARAM.limitDist
-    limitAlt = FILLPARAM.limitAlt
-
-    # -------------------------------------------- TARGET STATION INFO TABLE --
-
-    date_start = xldate_as_tuple(FILLPARAM.time_start, 0)
-    date_start = '%02d/%02d/%04d' % (WEATHER.DATE_START[TARGET.index, 2],
-                                     WEATHER.DATE_START[TARGET.index, 1],
-                                     WEATHER.DATE_START[TARGET.index, 0])
-
-    date_end = xldate_as_tuple(FILLPARAM.time_end, 0)
-    date_end = '%02d/%02d/%04d' % (WEATHER.DATE_END[TARGET.index, 2],
-                                   WEATHER.DATE_END[TARGET.index, 1],
-                                   WEATHER.DATE_END[TARGET.index, 0])
-
-    FIELDS = ['Latitude', 'Longitude', 'Altitude', 'Data date start',
-              'Data date end']
-
-    HEADER = [WEATHER.LAT[TARGET.index],
-              WEATHER.LON[TARGET.index],
-              WEATHER.ALT[TARGET.index],
-              date_start,
-              date_end]
-
-    target_info = '''<table border="0" cellpadding="1" cellspacing="0"
-                     align="left">'''
-
-    for i in range(len(HEADER)):
-        target_info += '<tr>'
-        target_info += '<td align="left">%s</td>' % FIELDS[i]
-        target_info += '<td align="left">&nbsp;:&nbsp;</td>'
-        target_info += '<td align="left">%s</td>' % HEADER[i]
-        target_info += '</tr>'
-
-    target_info += '</table>'
-
-    # -------------------------------------------------------- SORT STATIONS --
-
-    # Stations best correlated with the target station are displayed toward
-    # the top of the table while neighboring stations poorly correlated are
-    # displayed toward the bottom.
-
-    # Define a criteria for sorting the correlation quality of the stations.
-    CORCOEF = TARGET.CORCOEF
-    DATA = WEATHER.DATA
-    TIME = WEATHER.TIME
-
-    SUM_CORCOEF = np.sum(CORCOEF, axis=0) * -1  # Sort in descending order.
-    index_sort = np.argsort(SUM_CORCOEF)
-
-    # Reorganize the data.
-    CORCOEF = CORCOEF[:, index_sort]
-    DATA = DATA[:, index_sort, :]
-    STANAME = STANAME[index_sort]
-
-    HORDIST = TARGET.HORDIST[index_sort]
-    ALTDIFF = TARGET.ALTDIFF[index_sort]
-    target_station_index = np.where(TARGET.name == STANAME)[0]
-
-    index_start = np.where(TIME == FILLPARAM.time_start)[0][0]
-    index_end = np.where(TIME == FILLPARAM.time_end)[0][0]
-
-    # ---------------------------------------------- Determine filling dates --
-
-    fill_date_start = xldate_as_tuple(FILLPARAM.time_start, 0)
-    fill_date_start = '%02d/%02d/%04d' % (fill_date_start[2],
-                                          fill_date_start[1],
-                                          fill_date_start[0])
-
-    fill_date_end = xldate_as_tuple(FILLPARAM.time_end, 0)
-    fill_date_end = '%02d/%02d/%04d' % (fill_date_end[2],
-                                        fill_date_end[1],
-                                        fill_date_end[0])
-
-    # --------------------------------------------------- missing data table --
-
-    table1 = '''
-             <p align=justify>
-               Table 1 : Number of days with missing data from
-               <b>%s</b> to <b>%s</b> for station <b>%s</b>:
-             </p>
-             ''' % (fill_date_start, fill_date_end, TARGET.name)
-    table1 += '''
-              <table border="0" cellpadding="3" cellspacing="0"
-                     align="center">
-                <tr>
-                  <td colspan="5"><hr></td>
-                </tr>
-                <tr>
-              '''
-
-    table1 += '''
-              <td width=135 align="left">Weather Variable</td>
-              <td align="center">T<sub>max</sub></td>
-              <td align="center">T<sub>min</sub></sub></td>
-              <td align="center">T<sub>mean</sub></td>
-              <td align="center">P<sub>tot</sub></td>
-              '''
-
-    table1 += '''
-               </tr>
-               <tr>
-                 <td colspan="5"><hr></td>
-               </tr>
-               <tr>
-                 <td width=135 align="left">Days with<br>missing data</td>
-              '''
-
-    total_nbr_data = index_end - index_start + 1
-    for var in range(nVAR):
-        nbr_nan = np.isnan(DATA[index_start:index_end+1,
-                                target_station_index, var])
-        nbr_nan = float(np.sum(nbr_nan))
-
-        nan_percent = round(nbr_nan / total_nbr_data * 100, 1)
-
-        table1 += '''<td align="center">
-                      %d<br>(%0.1f %%)
-                     </td>''' % (nbr_nan, nan_percent)
-
-    table1 += '''
-              </tr>
-              <tr>
-              <td colspan="5"><hr></td>
-              </tr>
-              </table>
-              <br><br>
-              '''
-
-    # --------------------------------------------------- corr. coeff. table --
-    table2 = table1
-    table2 += '''
-              <p align="justify">
-                <font size="3">
-                  Table 2 : Altitude difference, horizontal distance and
-                  correlation coefficients for each meteorological variables,
-                  calculated between station <b>%s</b> and its neighboring
-                  stations :
-                <\font>
-              </p>
-              ''' % TARGET.name
-
-    # ---- HEADER ----
-
-    table2 += '''
-              <table border="0" cellpadding="3" cellspacing="0"
-                     align="center" width="100%%">
-                <tr>
-                  <td colspan="9"><hr></td>
-                </tr>
-                <tr>
-                  <td align="center" valign="bottom" width=30 rowspan="3">
-                    #
-                  </td>
-                  <td align="left" valign="bottom" width=200 rowspan="3">
-                    Neighboring Stations
-                  </td>
-                  <td width=60 align="center" valign="bottom" rowspan="3">
-                    &#916;Alt.<br>(m)
-                  </td>
-                  <td width=60 align="center" valign="bottom" rowspan="3">
-                    Dist.<br>(km)
-                  </td>
-                  <td align="center" valign="middle" colspan="4">
-                    Correlation Coefficients
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="4"><hr></td>
-                </tr>
-                <tr>
-                  <td width=60 align="center" valign="middle">
-                    T<sub>max</sub>
-                  </td>
-                  <td width=60 align="center" valign="middle">
-                    T<sub>min</sub>
-                  </td>
-                  <td width=60 align="center" valign="middle">
-                    T<sub>mean</sub>
-                  </td>
-                  <td width=60 align="center" valign="middle">
-                    P<sub>tot</sub>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="9"><hr></td>
-                </tr>
-              '''
-
-    color = ['transparent', StyleDB().lightgray]
-    index = list(range(nSTA))
-    index.remove(target_station_index)
-    counter = 0
-    for i in index:
-
-        # ---- Counter and Neighboring station names ----
-
-        table2 += '''
-                   <tr bgcolor="%s">
-                     <td align="center" valign="top">%02d</td>
-                     <td valign="top">
-                       %s
-                     </td>
-                  ''' % (color[counter % 2], counter+1, STANAME[i])
-
-        # ---- Altitude diff. ----
-
-        if abs(ALTDIFF[i]) >= limitAlt and limitAlt >= 0:
-            fontcolor = StyleDB().red
-        else:
-            fontcolor = ''
-
-        table2 += '''
-                     <td align="center" valign="top">
-                       <font color="%s">%0.1f</font>
-                     </td>
-                  ''' % (fontcolor, ALTDIFF[i])
-
-        # ---- Horiz. distance ----
-
-        if HORDIST[i] >= limitDist and limitDist >= 0:
-            fontcolor = StyleDB().red
-        else:
-            fontcolor = ''
-
-        table2 += '''
-                     <td align="center" valign="top">
-                       <font color="%s">%0.1f</font>
-                     </td>
-                  ''' % (fontcolor, HORDIST[i])
-
-        # ---- correlation coefficients ----
-
-        for value in CORCOEF[:, i]:
-            if value > 0.7:
-                fontcolor = ''
-            else:
-                fontcolor = StyleDB().red
-
-            table2 += '''
-                      <td align="center" valign="top">
-                        <font color="%s">%0.3f</font>
-                      </td>
-                      ''' % (fontcolor, value)
-        table2 += '</tr>'
-        counter += 1
-
-    table2 += '''  <tr>
-                     <td colspan="8"><hr></td>
-                   </tr>
-                   <tr>
-                     <td align="justify" colspan="8">
-                     <font size="2">
-                       * Correlation coefficients are set to
-                       <font color="#C83737">NaN</font> for a given
-                       variable if there is less than
-                       <font color="#C83737">%d</font> pairs of data
-                       between the target and the neighboring station.
-                       </font>
-                     </td>
-                   </tr>
-                 </table>
-                 ''' % (Ndata_limit)
-
-    return table2, target_info
-
-
-# =============================================================================
-
-
-class GapFill_Parameters():
+class GapfillParameters():
     # Class that contains all the relevant parameters for the gapfilling
     # procedure. Main instance of this class in the code is <FILLPARAM>.
 
     def __init__(self):
 
-        self.time_start = 0   # Fill and Save start date.
-        self.time_end = 0     # Fill and Save end date.
-        self.index_start = 0  # Time index for start date
-        self.index_end = 0    # Time index for end date
+        self.date_start = 0
+        self.date_end = 0
+        self.index_start = 0
+        self.index_end = 0
 
         self.regression_mode = True
 

@@ -9,9 +9,9 @@
 import csv
 import os
 import os.path as osp
-from time import strftime
+from time import strftime, process_time
 from copy import copy
-from time import process_time
+from datetime import datetime
 
 # ---- Third party imports
 import numpy as np
@@ -26,6 +26,7 @@ from PyQt5.QtCore import QObject
 # from statsmodels.regression.quantile_regression import QuantReg
 
 # ---- Local imports
+from cdprep.config.gui import RED, LIGHTGRAY
 from gwhat.common.utils import save_content_to_csv
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.read_weather_data import read_weather_datafile
@@ -129,20 +130,32 @@ class GapFillWeather(QObject):
         self.alt_and_dist = None
         self.corcoef = None
         self.wxdatasets.load_and_format_data(filepaths)
+        print('Data loaded successfully.')
 
-        return self.WEATHER.station_ids
+        return self.wxdatasets.station_ids
+
+    def get_target_station(self):
+        """
+        Return the metadata related to the current target station.
+        """
+        return self.wxdatasets.metadata.loc[self.target]
 
     def set_target_station(self, station_id):
-        if station_id not in self.WEATHER.station_ids:
+        """
+        Set the target station to the station corresponding to the specified
+        station id.
+        """
+        if station_id not in self.wxdatasets.station_ids:
             self.target = None
             self.alt_and_dist = None
             self.corcoef = None
-            raise ValueError("No data currently loaded for station ''."
+            raise ValueError("No data currently loaded for station '{}'."
                              .format(station_id))
         else:
             self.target = station_id
-            self.alt_and_dist = self.WEATHER.alt_and_dist_calc(station_id)
-            self.corcoef = self.WEATHER.compute_correlation_coeff(station_id)
+            self.alt_and_dist = self.wxdatasets.alt_and_dist_calc(station_id)
+            self.corcoef = (
+                self.wxdatasets.compute_correlation_coeff(station_id))
 
     def read_summary(self):
         return self.WEATHER.read_summary(self.outputDir)
@@ -904,6 +917,226 @@ class GapFillWeather(QObject):
         """Save content to a coma-separated value text file."""
         save_content_to_csv(fname, fcontent)
 
+    def generate_correlation_html_table(self, gapfill_parameters):
+        """
+        This function generate an HTML output to be displayed in the
+        <Fill Data> tab display area after a target station has been
+        selected by the user.
+        """
+        target_metadata = self.wxdatasets.metadata.loc[self.target]
+        header_data = {
+            'Latitude': target_metadata['Latitude'],
+            'Longitude': target_metadata['Longitude'],
+            'Altitude': target_metadata['Elevation'],
+            'Data start': target_metadata['first_date'],
+            'Data end': target_metadata['last_date']}
+        target_info = (
+            '<table border="0" cellpadding="1" cellspacing="0" align="left">')
+        for field, value in header_data.items():
+            target_info += '<tr>'
+            target_info += '<td align="left">%s</td>' % field
+            target_info += '<td align="left">&nbsp;=&nbsp;</td>'
+            target_info += '<td align="left">%s</td>' % value
+            target_info += '</tr>'
+        target_info += '</table>'
+
+        # Sort neighboring stations.
+
+        # Stations best correlated with the target station are displayed toward
+        # the top of the table while neighboring stations poorly correlated are
+        # displayed toward the bottom.
+
+        # Define a criteria for sorting the correlation quality
+        # of the stations.
+
+        # Generate the missing data table.
+        fill_date_start = gapfill_parameters.date_start
+        fill_date_end = gapfill_parameters.date_end
+        table1 = '''
+                 <p align=justify>
+                   Table 1 : Number of days with missing data from
+                   <b>%s</b> to <b>%s</b> for station <b>%s</b>:
+                 </p>
+                 ''' % (fill_date_start, fill_date_end,
+                        target_metadata['Station Name'])
+        table1 += '''
+                  <table border="0" cellpadding="3" cellspacing="0"
+                         align="center">
+                    <tr>
+                      <td colspan="5"><hr></td>
+                    </tr>
+                    <tr>
+                      <td width=135 align="left">Weather Variable</td>
+                      <td align="center">T<sub>max</sub></td>
+                      <td align="center">T<sub>min</sub></sub></td>
+                      <td align="center">T<sub>mean</sub></td>
+                      <td align="center">P<sub>tot</sub></td>
+                    </tr>
+                    <tr>
+                      <td colspan="5"><hr></td>
+                    </tr>
+                    <tr>
+                     <td width=135 align="left">Days with<br>missing data</td>
+                  '''
+
+        datetime_start = datetime.strptime(
+            gapfill_parameters.date_start, '%d/%m/%Y')
+        datetime_end = datetime.strptime(
+            gapfill_parameters.date_end, '%d/%m/%Y')
+        total_nbr_data = (
+            (datetime_end - datetime_start).total_seconds() / 3600 / 24 + 1)
+        for var in self.wxdatasets.data.keys():
+            data = self.wxdatasets.data[var][self.target]
+            nbr_nan = len(data[
+                (data.index >= datetime_start) &
+                (data.index <= datetime_end) &
+                (data.isnull())])
+            nan_percent = round(nbr_nan / total_nbr_data * 100, 1)
+
+            table1 += '''
+                      <td align="center">
+                      %d<br>(%0.1f %%)
+                      </td>
+                      ''' % (nbr_nan, nan_percent)
+        table1 += '''
+                  </tr>
+                  <tr>
+                  <td colspan="5"><hr></td>
+                  </tr>
+                  </table>
+                  <br><br>
+                  '''
+
+        # Generate the correlation coefficient table
+        table2 = table1
+        table2 += '''
+                  <p align="justify">
+                    <font size="3">
+                      Table 2 : Altitude difference, horizontal distance and
+                      correlation coefficients for each meteorological
+                      variables, calculated between station <b>%s</b> and its
+                      neighboring stations :
+                    <\font>
+                  </p>
+                  ''' % target_metadata['Station Name']
+
+        # Generate the horizontal header of the table.
+        table2 += '''
+                  <table border="0" cellpadding="3" cellspacing="0"
+                         align="center" width="100%%">
+                    <tr>
+                      <td colspan="9"><hr></td>
+                    </tr>
+                    <tr>
+                      <td align="center" valign="bottom" width=30 rowspan="3">
+                        #
+                      </td>
+                      <td align="left" valign="bottom" width=200 rowspan="3">
+                        Neighboring Stations
+                      </td>
+                      <td width=60 align="center" valign="bottom" rowspan="3">
+                        &#916;Alt.<br>(m)
+                      </td>
+                      <td width=60 align="center" valign="bottom" rowspan="3">
+                        Dist.<br>(km)
+                      </td>
+                      <td align="center" valign="middle" colspan="4">
+                        Correlation Coefficients
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="4"><hr></td>
+                    </tr>
+                    <tr>
+                      <td width=60 align="center" valign="middle">
+                        T<sub>max</sub>
+                      </td>
+                      <td width=60 align="center" valign="middle">
+                        T<sub>min</sub>
+                      </td>
+                      <td width=60 align="center" valign="middle">
+                        T<sub>mean</sub>
+                      </td>
+                      <td width=60 align="center" valign="middle">
+                        P<sub>tot</sub>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="9"><hr></td>
+                    </tr>
+                  '''
+        corcoef = self.corcoef.sort_values('Ptot', axis=0, ascending=False)
+
+        stations = corcoef.index.values.tolist()
+        stations.remove(self.target)
+        for i, station_id in enumerate(stations):
+            color = ['transparent', LIGHTGRAY][i % 2]
+            metadata = self.wxdatasets.metadata.loc[station_id]
+
+            # Neighboring station names.
+            table2 += '''
+                       <tr bgcolor="%s">
+                         <td align="center" valign="top">%02d</td>
+                         <td valign="top">
+                           %s
+                         </td>
+                      ''' % (color, i + 1, metadata['Station Name'])
+
+            # Check the condition for the altitude difference.
+            limit_altdiff = gapfill_parameters.limitAlt
+            altdiff = self.alt_and_dist.loc[station_id]['altdiff']
+            if abs(altdiff) >= limit_altdiff and limit_altdiff >= 0:
+                fontcolor = RED
+            else:
+                fontcolor = ''
+
+            table2 += '''
+                      <td align="center" valign="top">
+                        <font color="%s">%0.1f</font>
+                      </td>
+                      ''' % (fontcolor, altdiff)
+
+            # Check the condition for the horizontal distance.
+            limit_hordist = gapfill_parameters.limitDist
+            hordist = self.alt_and_dist.loc[station_id]['hordist']
+            if hordist >= limit_hordist and limit_hordist >= 0:
+                fontcolor = RED
+            else:
+                fontcolor = ''
+
+            table2 += '''
+                      <td align="center" valign="top">
+                        <font color="%s">%0.1f</font>
+                      </td>
+                      ''' % (fontcolor, hordist)
+            # Add the correlation coefficients to the table.
+            for var in ['Tmax', 'Tmin', 'Tavg', 'Ptot']:
+                value = self.corcoef.loc[station_id, var]
+                fontcolor = RED if value < 0.7 else ''
+                table2 += '''
+                          <td align="center" valign="top">
+                            <font color="%s">%0.3f</font>
+                          </td>
+                          ''' % (fontcolor, value)
+            table2 += '</tr>'
+        table2 += '''  <tr>
+                         <td colspan="8"><hr></td>
+                       </tr>
+                       <tr>
+                         <td align="justify" colspan="8">
+                         <font size="2">
+                           * Correlation coefficients are set to
+                           <font color="#C83737">NaN</font> for a given
+                           variable if there is less than
+                           <font color="#C83737">%d</font> pairs of data
+                           between the target and the neighboring station.
+                           </font>
+                         </td>
+                       </tr>
+                     </table>
+                     ''' % (365 // 2)
+        return table2, target_info
+
 
 class WeatherData(object):
     """
@@ -982,8 +1215,8 @@ class WeatherData(object):
                       .format(osp.basename(path)))
             else:
                 # Add the first and last date of the dataset to the metadata.
-                sta_metadata['first_date'] = min(sta_data.index)
-                sta_metadata['last_date'] = max(sta_data.index)
+                sta_metadata['first_date'] = min(sta_data.index).date()
+                sta_metadata['last_date'] = max(sta_data.index).date()
 
                 # Append the metadata of this station to that of the others.
                 sta_id = sta_metadata['Station ID']
@@ -1009,7 +1242,7 @@ class WeatherData(object):
             self.data[name] = self.data[name].resample('1D').asfreq()
 
         # Set the index of the metadata.
-        self.metadata.set_index('Station ID', inplace=True, drop=True)
+        self.metadata = self.metadata.set_index('Station ID', drop=True)
 
         return True
 
@@ -1041,7 +1274,7 @@ class WeatherData(object):
         Compute the correlation coefficients between the target
         station and the neighboring stations for each meteorological variable.
         """
-        print('Compute correlation coefficients for target station.')
+        print('Compute correlation coefficients for the target station.')
         correl_target = None
         for var in VARNAMES:
             corr_matrix = self.data[var].corr(min_periods=365//2).rename(
