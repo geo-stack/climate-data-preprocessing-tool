@@ -1194,6 +1194,12 @@ class WeatherData(object):
         return (self.data['Ptot'].index.values if
                 self.data is not None else [])
 
+    def count(self):
+        """
+        Return the number of datasets that are currently loaded.
+        """
+        return len(self.station_ids)
+
     def load_and_format_data(self, paths):
         """
         Parameters
