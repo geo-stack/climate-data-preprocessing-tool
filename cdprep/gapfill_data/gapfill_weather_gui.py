@@ -199,11 +199,11 @@ class WeatherDataGapfiller(QWidget):
         left_panel_layout.setContentsMargins(0, 0, 0, 0)
 
         # Setup the right panel.
-        self.FillTextBox = QTextEdit()
-        self.FillTextBox.setReadOnly(True)
-        self.FillTextBox.setMinimumWidth(700)
-        self.FillTextBox.setFrameStyle(0)
-        self.FillTextBox.document().setDocumentMargin(10)
+        self.corrcoeff_textedit = QTextEdit()
+        self.corrcoeff_textedit.setReadOnly(True)
+        self.corrcoeff_textedit.setMinimumWidth(700)
+        self.corrcoeff_textedit.setFrameStyle(0)
+        self.corrcoeff_textedit.document().setDocumentMargin(10)
 
         self.sta_display_summary = QTextEdit()
         self.sta_display_summary.setReadOnly(True)
@@ -211,7 +211,7 @@ class WeatherDataGapfiller(QWidget):
         self.sta_display_summary.document().setDocumentMargin(10)
 
         right_panel = QTabWidget()
-        right_panel.addTab(self.FillTextBox, 'Correlation Coefficients')
+        right_panel.addTab(self.corrcoeff_textedit, 'Correlation Coefficients')
         right_panel.addTab(self.sta_display_summary, 'Missing Data Overview')
 
         # Setup the main grid.
@@ -368,7 +368,7 @@ class WeatherDataGapfiller(QWidget):
         target station combobox.
         """
         # Reset the GUI.
-        self.FillTextBox.setText('')
+        self.corrcoeff_textedit.setText('')
         self.target_station_info.setText('')
         self.target_station.clear()
         QApplication.processEvents()
@@ -444,7 +444,7 @@ class WeatherDataGapfiller(QWidget):
             self.gapfill_worker.WEATHER,
             self.FILLPARAM)
 
-        self.FillTextBox.setText(table)
+        self.corrcoeff_textedit.setText(table)
         self.target_station_info.setText(target_info)
 
     @QSlot(int)
