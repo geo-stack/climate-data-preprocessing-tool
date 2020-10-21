@@ -369,18 +369,14 @@ class WeatherDataGapfiller(QWidget):
         */Meteo/Input folder and display the resulting station list in the
         target station combobox.
         """
-
-        # Reset UI :
-
+        # Reset the GUI.
         self.FillTextBox.setText('')
         self.target_station_info.setText('')
         self.target_station.clear()
         QApplication.processEvents()
 
-        # Load data and fill UI with info :
-
+        # Correlation calculation won't be triggered when CORRFLAG is off.
         self.CORRFLAG = 'off'
-        # Correlation calculation won't be triggered when this is off
 
         # Load data and fill UI with info.
         stanames = self.gapfill_worker.load_data()
