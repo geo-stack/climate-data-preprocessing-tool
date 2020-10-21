@@ -373,45 +373,46 @@ class WeatherDataGapfiller(QWidget):
         self.target_station.clear()
         QApplication.processEvents()
 
-        # Correlation calculation won't be triggered when CORRFLAG is off.
-        self.CORRFLAG = 'off'
-
         # Load data and fill UI with info.
-        stanames = self.gapfill_worker.load_data()
-        stanames = [] if stanames is None else stanames
-
-        self.target_station.addItems(stanames)
-        self.target_station.setCurrentIndex(-1)
+        self.CORRFLAG = 'off'
+        self.gapfill_worker.load_data()
+        station_names = self.gapfill_worker.wxdatasets.station_names
+        station_ids = self.gapfill_worker.wxdatasets.station_ids
+        for station_name, station_id in zip(station_names, station_ids):
+            self.target_station.addItem(station_name, userData=station_id)
         self.sta_display_summary.setHtml(self.gapfill_worker.read_summary())
 
-        if len(stanames) > 0:
+        if len(station_names) > 0:
             self.set_fill_and_save_dates()
-
+            self.target_station.blockSignals(True)
+            self.target_station.setCurrentIndex(0)
+            self.target_station.blockSignals(False)
         self.CORRFLAG = 'on'
+        self.handle_target_station_changed(self.target_station.currentIndex())
 
     def set_fill_and_save_dates(self):
         """
         Set first and last dates of the data serie in the boxes of the
         *Fill and Save* area.
         """
-
-        if len(self.gapfill_worker.WEATHER.DATE) > 0:
-
+        if self.gapfill_worker.wxdatasets.count():
             self.date_start_widget.setEnabled(True)
             self.date_end_widget.setEnabled(True)
 
-            DATE = self.gapfill_worker.WEATHER.DATE
+            mindate = (
+                self.gapfill_worker.wxdatasets.metadata['first_date'].min())
+            maxdate = (
+                self.gapfill_worker.wxdatasets.metadata['last_date'].max())
+            qdatemin = QDate(mindate.year, mindate.month, mindate.day)
+            qdatemax = QDate(maxdate.year, maxdate.month, maxdate.day)
 
-            DateMin = QDate(DATE[0, 0], DATE[0, 1], DATE[0, 2])
-            DateMax = QDate(DATE[-1, 0], DATE[-1, 1], DATE[-1, 2])
+            self.date_start_widget.setDate(qdatemin)
+            self.date_start_widget.setMinimumDate(qdatemin)
+            self.date_start_widget.setMaximumDate(qdatemax)
 
-            self.date_start_widget.setDate(DateMin)
-            self.date_start_widget.setMinimumDate(DateMin)
-            self.date_start_widget.setMaximumDate(DateMax)
-
-            self.date_end_widget.setDate(DateMax)
-            self.date_end_widget.setMinimumDate(DateMin)
-            self.date_end_widget.setMaximumDate(DateMax)
+            self.date_end_widget.setDate(qdatemax)
+            self.date_end_widget.setMinimumDate(qdatemin)
+            self.date_end_widget.setMaximumDate(qdatemax)
 
     def correlation_table_display(self):
         """
@@ -624,7 +625,7 @@ class WeatherDataGapfiller(QWidget):
         self.CORRFLAG = 'on'
 
         # Calculate correlation coefficient for the next station.
-        self.correlation_UI()
+        self.update_corrcoeff()
 
         # ----------------------------------------------------- START THREAD --
 
