@@ -43,6 +43,11 @@ class MainWindow(QMainWindow):
 
         self.gapfiller = WeatherDataGapfiller()
         self.data_downloader = WeatherStationDownloader(self)
+        if platform.system() == 'Windows':
+            import ctypes
+            myappid = 'climate_data_preprocessing_tool'  # arbitrary string
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                myappid)
 
         self.setCentralWidget(self.gapfiller)
 
