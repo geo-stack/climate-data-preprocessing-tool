@@ -66,7 +66,6 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_worker = GapFillWeather()
         self.gapfill_thread = QThread()
         self.gapfill_worker.moveToThread(self.gapfill_thread)
-        self.set_workdir(os.getcwd())
 
         self.__initUI__()
 
@@ -105,7 +104,7 @@ class WeatherDataGapfiller(QWidget):
         # ---- Target Station groupbox
         self.target_station = QComboBox()
         self.target_station.currentIndexChanged.connect(
-            self.target_station_changed)
+            self.handle_target_station_changed)
 
         self.target_station_info = QTextEdit()
         self.target_station_info.setReadOnly(True)
@@ -340,6 +339,7 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_worker.inputDir = dirname
         self.gapfill_worker.outputDir = osp.join(dirname, 'Meteo', 'Output')
         self.wxdata_merger.set_workdir(os.path.join(dirname, 'Meteo', 'Input'))
+        self.load_data_dir_content()
 
     def delete_current_dataset(self):
         """
@@ -417,7 +417,7 @@ class WeatherDataGapfiller(QWidget):
         """
         This method plot the table in the display area.
 
-        It is separated from the method <Correlation_UI> because red
+        It is separated from the method <update_corrcoeff> because red
         numbers and statistics regarding missing data for the selected
         time period can be updated in the table when the user changes the
         values without having to recalculate the correlation coefficient
@@ -432,27 +432,22 @@ class WeatherDataGapfiller(QWidget):
         self.target_station_info.setText(target_info)
 
     @QSlot(int)
-    def target_station_changed(self, index):
-        """Handles when the target station is changed on the GUI side."""
+    def handle_target_station_changed(self, index):
+        """Handle when the target station is changed by the user."""
         self.btn_delete_data.setEnabled(index != -1)
         if index != -1:
-            self.correlation_UI()
+            self.update_corrcoeff()
 
-    def correlation_UI(self):
+    def update_corrcoeff(self):
         """
-        Calculate automatically the correlation coefficients when a target
-        station is selected by the user in the drop-down menu or if a new
-        station is selected programmatically.
+        Calculate the correlation coefficients and display the results
+        in the GUI.
         """
         if self.CORRFLAG == 'on' and self.target_station.currentIndex() != -1:
-            index = self.target_station.currentIndex()
-            self.gapfill_worker.set_target_station(index)
-
-            msg = ('Correlation coefficients calculation for ' +
-                   'station %s completed') % self.gapfill_worker.TARGET.name
-            self.ConsoleSignal.emit('<font color=black>%s</font>' % msg)
-            print(msg)
-
+            station_id = self.target_station.currentData()
+            self.gapfill_worker.set_target_station(station_id)
+            print("Correlation coefficients calculated for station {}.".format(
+                self.gapfill_worker.get_target_station()['Station Name']))
             self.correlation_table_display()
 
     def restoreUI(self):  # ===================================================
