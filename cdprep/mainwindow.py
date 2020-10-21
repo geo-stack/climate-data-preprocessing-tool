@@ -11,6 +11,7 @@
 import sys
 import os
 import os.path as osp
+import platform
 
 # ---- Third parties imports
 from appconfigs.base import get_home_dir
@@ -40,16 +41,15 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(__namever__)
         self.setWindowIcon(get_icon('master'))
+        self.setContextMenuPolicy(Qt.NoContextMenu)
 
-        self.gapfiller = WeatherDataGapfiller()
-        self.data_downloader = WeatherStationDownloader(self)
         if platform.system() == 'Windows':
             import ctypes
             myappid = 'climate_data_preprocessing_tool'  # arbitrary string
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
                 myappid)
 
-        self.setCentralWidget(self.gapfiller)
+        self.data_downloader = WeatherStationDownloader(self)
 
         # Setup the toolbar.
         self.show_data_downloader_btn = QToolButton()
@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         self.show_data_downloader_btn.clicked.connect(
             self.data_downloader.show)
 
-        toolbar = QToolBar()
+        toolbar = QToolBar('Main')
         toolbar.setFloatable(False)
         toolbar.setMovable(False)
         toolbar.setIconSize(get_iconsize('normal'))
@@ -67,6 +67,10 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.show_data_downloader_btn)
         toolbar.addWidget(create_toolbar_stretcher())
         toolbar.addWidget(self._create_workdir_manager())
+
+        # Setup the main widget.
+        self.gapfiller = WeatherDataGapfiller()
+        self.setCentralWidget(self.gapfiller)
 
         self._restore_window_geometry()
         self._restore_window_state()
