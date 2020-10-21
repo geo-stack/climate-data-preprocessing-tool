@@ -134,6 +134,7 @@ class WeatherDataGapfiller(QWidget):
             'datafile. However, raw datafiles will be kept.')
         self.btn_delete_data.clicked.connect(self.delete_current_dataset)
 
+        # Generate the layout for the target station group widget.
         widgets = [self.target_station, self.btn_refresh_staList,
                    btn_merge_data, self.btn_delete_data]
 
@@ -396,7 +397,7 @@ class WeatherDataGapfiller(QWidget):
 
         self.CORRFLAG = 'on'
 
-    def set_fill_and_save_dates(self):  # =====================================
+    def set_fill_and_save_dates(self):
         """
         Set first and last dates of the data serie in the boxes of the
         *Fill and Save* area.
