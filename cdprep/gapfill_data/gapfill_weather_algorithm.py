@@ -950,8 +950,8 @@ class GapFillWeather(QObject):
         # of the stations.
 
         # Generate the missing data table.
-        fill_date_start = gapfill_parameters.date_start
-        fill_date_end = gapfill_parameters.date_end
+        fill_date_start = gapfill_parameters['date_start']
+        fill_date_end = gapfill_parameters['date_end']
         table1 = '''
                  <p align=justify>
                    Table 1 : Number of days with missing data from
@@ -980,9 +980,9 @@ class GapFillWeather(QObject):
                   '''
 
         datetime_start = datetime.strptime(
-            gapfill_parameters.date_start, '%d/%m/%Y')
+            gapfill_parameters['date_start'], '%d/%m/%Y')
         datetime_end = datetime.strptime(
-            gapfill_parameters.date_end, '%d/%m/%Y')
+            gapfill_parameters['date_end'], '%d/%m/%Y')
         total_nbr_data = (
             (datetime_end - datetime_start).total_seconds() / 3600 / 24 + 1)
         for var in self.wxdatasets.data.keys():
@@ -1083,7 +1083,7 @@ class GapFillWeather(QObject):
                       ''' % (color, i + 1, metadata['Station Name'])
 
             # Check the condition for the altitude difference.
-            limit_altdiff = gapfill_parameters.limitAlt
+            limit_altdiff = gapfill_parameters['limitAlt']
             altdiff = self.alt_and_dist.loc[station_id]['altdiff']
             if abs(altdiff) >= limit_altdiff and limit_altdiff >= 0:
                 fontcolor = RED
@@ -1097,7 +1097,7 @@ class GapFillWeather(QObject):
                       ''' % (fontcolor, altdiff)
 
             # Check the condition for the horizontal distance.
-            limit_hordist = gapfill_parameters.limitDist
+            limit_hordist = gapfill_parameters['limitDist']
             hordist = self.alt_and_dist.loc[station_id]['hordist']
             if hordist >= limit_hordist and limit_hordist >= 0:
                 fontcolor = RED
