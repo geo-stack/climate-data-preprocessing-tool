@@ -32,7 +32,8 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
-from cdprep.gapfill_data.gapfill_weather_algorithm import GapFillWeather
+from cdprep.gapfill_data.gapfill_weather_algorithm import (
+    GapFillWeather, VARNAMES)
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.widgets.toolpanel import ToolPanel
@@ -55,7 +56,6 @@ class WeatherDataGapfiller(QWidget):
         super().__init__(parent)
 
         self.isFillAll_inProgress = False
-        self.FILLPARAM = GapFill_Parameters()
 
         # Correlation calculation won't be triggered by events when
         # CORRFLAG is 'off'
@@ -425,25 +425,9 @@ class WeatherDataGapfiller(QWidget):
         """
         if self.CORRFLAG == 'off' or self.target_station.currentIndex() == -1:
             return
-
-        self.FILLPARAM.limitDist = self.distlimit.value()
-        self.FILLPARAM.limitAlt = self.altlimit.value()
-
-        y = self.date_start_widget.date().year()
-        m = self.date_start_widget.date().month()
-        d = self.date_start_widget.date().day()
-        self.FILLPARAM.time_start = xldate_from_date_tuple((y, m, d), 0)
-
-        y = self.date_end_widget.date().year()
-        m = self.date_end_widget.date().month()
-        d = self.date_end_widget.date().day()
-        self.FILLPARAM.time_end = xldate_from_date_tuple((y, m, d), 0)
-
-        table, target_info = generate_correlation_html_table(
-            self.gapfill_worker.TARGET,
-            self.gapfill_worker.WEATHER,
-            self.FILLPARAM)
-
+        table, target_info = (
+            self.gapfill_worker.generate_correlation_html_table(
+                self.get_gapfill_parameters()))
         self.corrcoeff_textedit.setText(table)
         self.target_station_info.setText(target_info)
 
@@ -488,6 +472,18 @@ class WeatherDataGapfiller(QWidget):
         QApplication.processEvents()
 
         self.pbar.hide()
+
+    def get_gapfill_parameters(self):
+        """
+        Return a dictionary containing the parameters that are set in the GUI
+        for gapfilling weather data.
+        """
+        return {
+            'limitDist': self.distlimit.value(),
+            'limitAlt': self.altlimit.value(),
+            'date_start': self.date_start_widget.date().toString('dd/MM/yyyy'),
+            'date_end': self.date_end_widget.date().toString('dd/MM/yyyy')
+            }
 
     def get_dataset_names(self):
         """
