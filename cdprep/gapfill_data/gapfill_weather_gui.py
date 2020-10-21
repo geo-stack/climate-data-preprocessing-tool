@@ -126,7 +126,7 @@ class WeatherDataGapfiller(QWidget):
         btn_merge_data.clicked.connect(self.wxdata_merger.show)
 
         self.btn_delete_data = QToolButton()
-        self.btn_delete_data.setIcon(get_icon('clear'))
+        self.btn_delete_data.setIcon(get_icon('delete_data'))
         self.btn_delete_data.setEnabled(False)
         self.btn_delete_data.setAutoRaise(True)
         self.btn_delete_data.setToolTip(
