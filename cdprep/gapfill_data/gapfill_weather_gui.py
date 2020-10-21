@@ -414,38 +414,38 @@ class WeatherDataGapfiller(QWidget):
             self.date_end_widget.setMaximumDate(DateMax)
 
     def correlation_table_display(self):
-
         """
-        This method plot the table in the display area. It is separated from
-        the method <Correlation_UI> because red numbers and statistics
-        regarding missing data for the selected time period can be updated in
-        the table when the user changes the values without having to
-        recalculate the correlation coefficient each time.
+        This method plot the table in the display area.
+
+        It is separated from the method <Correlation_UI> because red
+        numbers and statistics regarding missing data for the selected
+        time period can be updated in the table when the user changes the
+        values without having to recalculate the correlation coefficient
+        each time.
         """
+        if self.CORRFLAG == 'off' or self.target_station.currentIndex() == -1:
+            return
 
-        if self.CORRFLAG == 'on' and self.target_station.currentIndex() != -1:
+        self.FILLPARAM.limitDist = self.distlimit.value()
+        self.FILLPARAM.limitAlt = self.altlimit.value()
 
-            self.FILLPARAM.limitDist = self.distlimit.value()
-            self.FILLPARAM.limitAlt = self.altlimit.value()
+        y = self.date_start_widget.date().year()
+        m = self.date_start_widget.date().month()
+        d = self.date_start_widget.date().day()
+        self.FILLPARAM.time_start = xldate_from_date_tuple((y, m, d), 0)
 
-            y = self.date_start_widget.date().year()
-            m = self.date_start_widget.date().month()
-            d = self.date_start_widget.date().day()
-            self.FILLPARAM.time_start = xldate_from_date_tuple((y, m, d), 0)
+        y = self.date_end_widget.date().year()
+        m = self.date_end_widget.date().month()
+        d = self.date_end_widget.date().day()
+        self.FILLPARAM.time_end = xldate_from_date_tuple((y, m, d), 0)
 
-            y = self.date_end_widget.date().year()
-            m = self.date_end_widget.date().month()
-            d = self.date_end_widget.date().day()
-            self.FILLPARAM.time_end = xldate_from_date_tuple((y, m, d), 0)
+        table, target_info = generate_correlation_html_table(
+            self.gapfill_worker.TARGET,
+            self.gapfill_worker.WEATHER,
+            self.FILLPARAM)
 
-
-            table, target_info = correlation_table_generation(
-                self.gapfill_worker.TARGET,
-                self.gapfill_worker.WEATHER,
-                self.FILLPARAM)
-
-            self.FillTextBox.setText(table)
-            self.target_station_info.setText(target_info)
+        self.FillTextBox.setText(table)
+        self.target_station_info.setText(target_info)
 
     @QSlot(int)
     def target_station_changed(self, index):
