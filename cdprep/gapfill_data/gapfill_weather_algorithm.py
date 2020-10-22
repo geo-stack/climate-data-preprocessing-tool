@@ -1143,20 +1143,6 @@ class WeatherData(object):
     This class contains all the weather data and weather station info
     that are needed for the gapfilling algorithm that is defined in the
     *GapFillWeather* class.
-
-    Class Attributes
-    ----------------
-    DATA: Numpy matrix [i, j, k] contraining the weather data where:
-        - layer k=0 is Maximum Daily Temperature
-        - layer k=1 is Minimum Daily Temperature
-        - layer k=2 is Daily Mean Temperature
-        - layer k=3 is Total Daily Precipitation
-        - rows i are the time
-        - columns j are the stations listed in STANAME
-    STANAME: Numpy Array
-        Contains the name of the weather stations. If a station name already
-        exists in the list when adding a new station, a number is added at
-        the end of the new name.
     """
 
     def __init__(self):
