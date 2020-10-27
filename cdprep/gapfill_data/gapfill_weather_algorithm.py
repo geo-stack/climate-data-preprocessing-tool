@@ -170,17 +170,17 @@ class GapFillWeather(QObject):
         print('{}\n{}\n{}'.format('-' * 50, msg, '-' * 50))
         self.sig_console_message.emit('<font color=black>%s</font>' % msg)
 
-        # ---- Init Container Matrices --
+        # ---- Init Container Matrices
 
         # Save the weather data series of the target station in a new
-        # 2D matrix named <Y2fill>. The NaN values contained in this matrix
+        # 2D matrix named 'y2fill'. The NaN values contained in this matrix
         # will be filled during the data completion process
 
-        # When *full_error_analysis* is activated, an additional empty
-        # 2D matrix named <YpFULL> is created. This matrix will be completely
-        # filled with estimated data during the gap-filling process. The
-        # content of this matrix will be used to produce *.err* file.
         y2fill = (self.WEATHER.data[VARNAMES[0]][[self.target]]
+        # When the option 'full_error_analysis' is True, an additional empty
+        # 2D matrix named 'YpFULL' is created. This matrix will be completely
+        # filled with estimated data during the gapfilling process. The
+        # content of this matrix will be used to produce the '.err' file.
                   .rename(columns={self.target: VARNAMES[0]}))
         for var in VARNAMES[1:]:
             y2fill = y2fill.merge(
