@@ -67,7 +67,6 @@ class DataGapfiller(QObject):
 
         self.WEATHER = self.wxdatasets = WeatherData()
 
-        self.outputDir = None
         self.inputDir = None
 
         self.STOP = False  # Flag used to stop the algorithm from a GUI
@@ -94,8 +93,12 @@ class DataGapfiller(QObject):
         # dataset in the cross-validation procedure.
         self.leave_one_out = False
 
-        self.fig_format = PostProcessErr.SUPPORTED_FIG_FORMATS[0]
-        self.fig_language = PostProcessErr.SUPPORTED_LANGUAGES[0]
+    @property
+    def outputDir(self):
+        if self.inputDir is None:
+            return None
+        else:
+            return osp.join(self.inputDir, 'GAPFILLED')
 
     @property
     def NSTAmax(self):
@@ -1009,7 +1012,6 @@ if __name__ == '__main__':
 
     # Set the input and output directory.
     gapfiller.inputDir = 'D:/gapfill_weather_data_test'
-    gapfiller.outputDir = 'D:/gapfill_weather_data_test/gapfilled'
 
     # Load weather the data files and set the target station.
     station_names = gapfiller.load_data()
