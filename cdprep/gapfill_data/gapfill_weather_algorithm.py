@@ -37,7 +37,7 @@ TEMP_VARIABLES = ['Tmax', 'Tavg', 'Tmin']
 VARNAMES = PRECIP_VARIABLES + TEMP_VARIABLES
 
 
-class GapFillWeather(QObject):
+class DataGapfiller(QObject):
     """
     This class manage all that is related to the gap-filling of weather data
     records, including reading the data file on the disk.
@@ -56,7 +56,7 @@ class GapFillWeather(QObject):
     sig_gapfill_finished = QSignal(bool)
 
     def __init__(self, parent=None):
-        super(GapFillWeather, self).__init__(parent)
+        super().__init__(parent)
         self.target = None
         self.alt_and_dist = None
         self.corcoef = None

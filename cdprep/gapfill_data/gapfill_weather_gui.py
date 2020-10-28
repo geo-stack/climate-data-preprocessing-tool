@@ -33,7 +33,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
 from cdprep.gapfill_data.gapfill_weather_algorithm import (
-    GapFillWeather, VARNAMES)
+    DataGapfiller, VARNAMES)
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.widgets.toolpanel import ToolPanel
@@ -63,7 +63,7 @@ class WeatherDataGapfiller(QWidget):
         self.wxdata_merger = WXDataMergerWidget()
 
         # Setup gap fill worker and thread :
-        self.gapfill_worker = GapFillWeather()
+        self.gapfill_worker = DataGapfiller()
         self.gapfill_thread = QThread()
         self.gapfill_worker.moveToThread(self.gapfill_thread)
 
