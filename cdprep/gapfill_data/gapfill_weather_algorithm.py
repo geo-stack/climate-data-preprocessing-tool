@@ -321,9 +321,55 @@ class DataGapfiller(QObject):
         print(message)
         self.sig_console_message.emit('<font color=black>%s</font>' % message)
 
-        # print('\n' + msg)
-        # print('Saving data to files...')
-        # print('--------------------------------------------------')
+        # Save the gapfilled data to a file.
+
+        # Add Year, Month and Day to the dataset and rename some columns.
+        gapfilled_data['Year'] = gapfilled_data.index.year.astype(str)
+        gapfilled_data['Month'] = gapfilled_data.index.month.astype(str)
+        gapfilled_data['Day'] = gapfilled_data.index.day.astype(str)
+        for varname in VARNAMES:
+            gapfilled_data[varname] = gapfilled_data[varname].round(1)
+
+        # Make sure the columns are in the right order.
+        gapfilled_data = gapfilled_data[
+            ['Year', 'Month', 'Day', 'Tmax', 'Tmin', 'Tavg', 'Ptot']]
+
+        target_metadata = self.wxdatasets.metadata.loc[self.target]
+        data_headers = ['Year', 'Month', 'Day', 'Max Temp (°C)',
+                        'Min Temp (°C)', 'Mean Temp (°C)',
+                        'Total Precip (mm)']
+        fcontent = [
+            ['Station Name', target_metadata['Station Name']],
+            ['Province', target_metadata['Location']],
+            ['Latitude (dd)', target_metadata['Latitude']],
+            ['Longitude (dd)', target_metadata['Longitude']],
+            ['Elevation (m)', target_metadata['Elevation']],
+            ['Climate Identifier', self.target],
+            [],
+            ['Created by', __namever__],
+            ['Created on', strftime("%d/%m/%Y")],
+            [],
+            data_headers
+            ] + gapfilled_data.values.tolist()
+
+        # Save the data to csv.
+        if not osp.exists(self.outputDir):
+            os.makedirs(self.outputDir)
+
+        clean_target_name = (
+            target_metadata['Station Name']
+            .replace('\\', '_').replace('/', '_'))
+        filename = '{} ({})_{}-{}.csv'.format(
+            clean_target_name,
+            self.target,
+            str(min(gapfilled_data['Year'])),
+            str(max(gapfilled_data['Year']))
+            )
+
+        filepath = osp.join(self.outputDir, filename)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            writer = csv.writer(f, delimiter=',', lineterminator='\n')
+            writer.writerows(fcontent)
 
         # if flag_nan:
         #     msg = ("WARNING: Some missing data were not filled because all "
