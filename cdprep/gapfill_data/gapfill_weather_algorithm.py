@@ -19,6 +19,7 @@ import pandas as pd
 from xlrd.xldate import xldate_from_date_tuple
 from PyQt5.QtCore import pyqtSignal as QSignal
 from PyQt5.QtCore import QObject
+from PyQt5.QtWidgets import QApplication
 
 # import statsmodels.api as sm
 # import statsmodels.regression as sm_reg
@@ -27,7 +28,6 @@ from PyQt5.QtCore import QObject
 
 # ---- Local imports
 from cdprep.config.gui import RED, LIGHTGRAY
-from gwhat.common.utils import save_content_to_csv
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.read_weather_data import read_weather_datafile
 from cdprep import __namever__
@@ -159,6 +159,25 @@ class DataGapfiller(QObject):
 
     def read_summary(self):
         return self.WEATHER.read_summary(self.outputDir)
+
+    def get_valid_neighboring_stations(self):
+        """
+        Return the list of neighboring stations that are within the
+        horizontal and altitude range of the target station.
+        """
+        # If cutoff limits for the horizontal distance and altitude are set
+        # to a negative number, all stations are kept regardless of their
+        # distance or altitude difference with the target station.
+        valid_stations = self.alt_and_dist.copy()
+        if self.limitDist > 0:
+            valid_stations = valid_stations[
+                valid_stations['hordist'] <= self.limitDist]
+        if self.limitAlt > 0:
+            valid_stations = valid_stations[
+                valid_stations['altdiff'].abs() <= self.limitAlt]
+        valid_stations = valid_stations.index.values.tolist()
+        valid_stations.remove(self.target)
+        return valid_stations
 
     def fill_data(self):
         """
