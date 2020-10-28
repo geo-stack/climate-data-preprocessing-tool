@@ -725,7 +725,8 @@ class RawDataDownloader(QObject):
 
         StaName = StaName.replace('\\', '_')
         StaName = StaName.replace('/', '_')
-        dirname = osp.join(self.dirname, '%s (%s)' % (StaName, climateID))
+        dirname = osp.join(
+            self.dirname, 'RAW', '%s (%s)' % (StaName, climateID))
         if not osp.exists(dirname):
             os.makedirs(dirname)
 
