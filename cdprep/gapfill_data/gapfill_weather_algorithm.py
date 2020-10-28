@@ -446,20 +446,6 @@ class DataGapfiller(QObject):
 
         return Yname, Y, Xnames, X, Xcount_var, Xcount_tot
 
-    def sort_sta_corrcoef(self, var):
-        corcoef = self.corcoef[var]
-        corcoef = corcoef.sort_values(ascending=False)
-        corcoef = corcoef[corcoef.notnull()]
-
-        sorted_stations = corcoef.index.tolist()
-        sorted_stations.remove(self.target)
-        sorted_stations.insert(0, self.target)
-        # Note that we need to move the target station explicitely at the
-        # start of the list in case there is another station with data
-        # duplicated from the target station.
-
-        return sorted_stations
-
     def generate_correlation_html_table(self, gapfill_parameters):
         """
         This function generate an HTML output to be displayed in the
