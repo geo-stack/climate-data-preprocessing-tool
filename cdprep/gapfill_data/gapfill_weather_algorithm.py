@@ -190,7 +190,7 @@ class DataGapfiller(QObject):
             start=self.time_start, end=self.time_end, freq='D')
         y2fill = pd.DataFrame(
             np.nan, index=gapfill_date_range, columns=VARNAMES)
-        for j, varname in enumerate(VARNAMES):
+        for varname in VARNAMES:
             # When a station does not have enough data for a given variable,
             # its correlation coefficient is set to nan. If all the stations
             # have a NeN value in the correlation table for a given variable,
@@ -207,29 +207,28 @@ class DataGapfiller(QObject):
                 continue
             tstart = process_time()
             print('Gapfilling data for variable {}...'.format(varname))
-            
-            isnull = self.wxdatasets.data[varname][neighbors].isnull()
 
             reg_models = {}
-            for i, date in enumerate(gapfill_date_range):
-                # Determine neighboring stations with data for that date.
-                X_row = self.wxdatasets.data[varname].loc[date]
-                neighbors_with_data = sorted(list(
-                    X_row[neighbors].dropna().index))
-                if len(neighbors_with_data) == 0:
-                    # It is impossible to fill variable because all
-                    # neighboring stations are empty.
-                    flag_nan = True
+            notnull = gapfiller.wxdatasets.data[varname].loc[
+                gapfill_date_range, neighbors].notnull()
+            notnull_groups = notnull.groupby(by=neighbors, axis=0)
+            for group in notnull_groups:
+                if len(group[1].columns) == 0:
+                    # It is impossible to fill the data in this group
+                    # because all neighboring stations are empty.
                     continue
+                group_dates = group[1].index
+                group_neighbors = group[1].columns[list(group[0])]
 
                 # Determines the neighboring stations to include in the
                 # regression model.
-                neighbors_with_data = list(
-                    self.corcoef.loc[neighbors_with_data]
+                model_neighbors = list(
+                    self.corcoef.loc[group_neighbors]
                     .sort_values(varname, axis=0, ascending=False)
                     .index
                     )[:self.NSTAmax]
-                neighbors_combi = ', '.join(neighbors_with_data)
+
+                neighbors_combi = ', '.join(model_neighbors)
                 if neighbors_combi in reg_models:
                     # Regression coefficients and RSME are recalled
                     # from the memory matrices.
@@ -243,17 +242,10 @@ class DataGapfiller(QObject):
                     # their stations in in descending correlation
                     # coefficient.
                     YX = self.wxdatasets.data[varname][
-                        [self.target] + neighbors_with_data].copy()
+                        [self.target] + model_neighbors].copy()
 
-                    # Removes row for which a data is missing in the
-                    # target station data series
-                    YX = YX.dropna(subset=[self.target])
-                    ntot = len(YX)
-
-                    # All rows containing at least one nan for the
-                    # neighboring stations are removed
+                    # Remove all rows containing at least one nan value.
                     YX = YX.dropna()
-                    nreg = len(YX)
 
                     # Rows for which precipitation of the target station
                     # and all the neighboring stations is 0 are removed.
@@ -266,7 +258,7 @@ class DataGapfiller(QObject):
                     Y = YX[self.target].values
 
                     # Independant variables (neighbors)
-                    X = YX[neighbors_with_data].values
+                    X = YX[model_neighbors].values
 
                     # Add a unitary array to X for the intercept term if
                     # variable is a temperature type data.
@@ -285,27 +277,29 @@ class DataGapfiller(QObject):
                     # in the calcultation.
                     Yp = np.dot(A, X.transpose())
 
-                    RMSE = (Y - Yp)**2          # MAE = np.abs(Y - Yp)
-                    RMSE = RMSE[RMSE != 0]      # MAE = MAE[MAE!=0]
-                    RMSE = np.mean(RMSE)**0.5   # MAE = np.mean(MAE)
+                    rmse = (Y - Yp)**2          # MAE = np.abs(Y - Yp)
+                    rmse = rmse[rmse != 0]      # MAE = MAE[MAE!=0]
+                    rmse = np.mean(rmse)**0.5   # MAE = np.mean(MAE)
+                    # print('Calcul RMSE', rmse)
 
                     # Store values in memory.
                     reg_models[neighbors_combi] = A
 
-                # Calculate the missing value of Y at row.
-                X_row = X_row[neighbors_with_data].values
+                # Calculate the missing values for the group.
+                X = self.wxdatasets.data[varname].loc[
+                    group_dates, model_neighbors].values
                 if varname in ['Tmax', 'Tavg', 'Tmin']:
-                    X_row = np.hstack((1, X_row))
-                Y_row = np.dot(A, X_row)
+                    X = np.hstack((np.ones((len(X), 1)), X))
 
+                Y = np.dot(A, X.transpose())
                 # Limit precipitation to positive values.
                 # This may happens when there is one or more negative
                 # regression coefficients in A
                 if varname in ['Ptot']:
-                    Y_row = max(Y_row, 0)
+                    Y[Y < 0] = 0
 
                 # Store the results.
-                y2fill.iat[i, j] = Y_row
+                y2fill.loc[group_dates, varname] = Y
             print('Data gapfilled for {} in {:0.1f} sec.'.format(
                 varname, process_time() - tstart))
         return y2fill
@@ -326,15 +320,15 @@ class DataGapfiller(QObject):
         # 2D matrix named 'y2fill'. The NaN values contained in this matrix
         # will be filled during the data completion process
 
-        y2fill = (self.WEATHER.data[VARNAMES[0]][[self.target]]
         # When the option 'full_error_analysis' is True, an additional empty
         # 2D matrix named 'YpFULL' is created. This matrix will be completely
         # filled with estimated data during the gapfilling process. The
         # content of this matrix will be used to produce the '.err' file.
+        y2fill = (self.wxdatasets.data[VARNAMES[0]][[self.target]]
                   .rename(columns={self.target: VARNAMES[0]}))
         for var in VARNAMES[1:]:
             y2fill = y2fill.merge(
-                self.WEATHER.data[var][[self.target]]
+                self.wxdatasets.data[var][[self.target]]
                 .rename(columns={self.target: var}),
                 left_index=True, right_index=True, how='outer'
                 )
@@ -343,45 +337,35 @@ class DataGapfiller(QObject):
         for var in VARNAMES:
             yxmfill[var] = pd.DataFrame(
                 np.nan,
-                index=self.WEATHER.data[var].index,
-                columns=self.WEATHER.data[var].columns)
+                index=self.wxdatasets.data[var].index,
+                columns=self.wxdatasets.data[var].columns)
 
         log_rmse = pd.DataFrame(
             np.nan, index=y2fill.index, columns=y2fill.columns)
         log_ndat = log_rmse.copy()
-
         if self.full_error_analysis:
             print('\n!A full error analysis will be performed!\n')
             ypfull = log_rmse.copy()
             yxmfull = {var: yxmfill[var].copy() for var in VARNAMES}
 
-        # Remove the neighboring stations that do not respect the distance
-        # or altitude difference cutoff criteria. If cutoff limits are set
-        # to a negative number, all stations are kept regardless of their
-        # distance or altitude difference with the target station.
-        valid_stations = self.alt_and_dist.copy()
-        if self.limitDist > 0:
-            valid_stations = valid_stations[
-                valid_stations['hordist'] <= self.limitDist]
-        if self.limitAlt > 0:
-            valid_stations = valid_stations[
-                valid_stations['altdiff'].abs() <= self.limitAlt]
+        # Remove non-valid neighboring station.
+        valid_stations = self.get_valid_neighboring_stations()
 
         # Checks variables with enough data.
 
         # When a station does not have enough data for a given variable,
         # its correlation coefficient is set to nan. If all the stations
-        # have a value of nan in the correlation table for a given variable,
+        # have a NeN value in the correlation table for a given variable,
         # it means there is not enough data available overall to estimate
-        # and fill missing data for it.
+        # and fill the missing data for that variable.
         var2fill = []
         for var in VARNAMES:
             var_corcoef = self.corcoef.loc[valid_stations.index, var].values
             if np.sum(~np.isnan(var_corcoef)) > 1:
                 var2fill.append(var)
             else:
-                msg = ("!Variable %s will not be filled because there " +
-                       "is not enough data!") % var
+                msg = ("!Variable {} will not be filled because there "
+                       "is not enough data!").format(var)
                 print(msg)
                 self.sig_console_message.emit(
                     '<font color=red>%s</font>' % msg)
@@ -394,10 +378,10 @@ class DataGapfiller(QObject):
         flag_nan = False
 
         nbr_nan_total = np.sum(np.isnan(
-            y2fill.loc[(y2fill.index >= self.time_start) & 
+            y2fill.loc[(y2fill.index >= self.time_start) &
                        (y2fill.index <= self.time_end)]).values)
 
-        # Initi the variable for the progression of the routine.
+        # Init the variable for the progression of the routine.
 
         # *progress_total* and *fill_progress* are used to display the
         # progression of the gap-filling procedure on a UI progression bar.
