@@ -28,7 +28,6 @@ from PyQt5.QtWidgets import QApplication
 
 # ---- Local imports
 from cdprep.config.gui import RED, LIGHTGRAY
-from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.read_weather_data import read_weather_datafile
 from cdprep import __namever__
 
@@ -1077,8 +1076,4 @@ if __name__ == '__main__':
     # 0 -> Least Absolute Deviation (LAD)
     # 1 -> Ordinary Least-Square (OLS)
 
-    y2fill = gapfiller.fill_data()
-    
-    
-    
-    
+    gapfilled_data = gapfiller.fill_data()
