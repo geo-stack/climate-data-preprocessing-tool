@@ -1477,7 +1477,6 @@ class WeatherData(object):
         output_path = os.path.join(
             project_folder, 'weather_datasets_summary.log')
         print(output_path)
-        save_content_to_csv(output_path, fcontent)
 
     def read_summary(self, project_folder):
         """
@@ -1659,77 +1658,43 @@ def L1LinearRegression(X, Y):
     return B
 
 
-def main():                                                  # pragma: no cover
+if __name__ == '__main__':
+    from datetime import datetime
+    gapfiller = DataGapfiller()
 
-    # =========================================================================
-    # 1 - Create an instance of the class *GapFillWeather*
-    # =========================================================================
-    # The algorithm is built as a base class of the Qt GUI Framework
-    # using the PyQt binding. Signals are also emitted at various stade
-    # in the gap-filling routine. This has been done to facilitate the
-    # addition of a Graphical User Interface on top of the algorithm with
-    # the Qt GUI Development framework.
-    gapfill_weather = GapFillWeather()
+    # Set the input and output directory.
+    gapfiller.inputDir = 'D:/gapfill_weather_data_test'
+    gapfiller.outputDir = 'D:/gapfill_weather_data_test/gapfilled'
 
-    # =========================================================================
-    # 2 - Setup input and output directory
-    # =========================================================================
+    # Load weather the data files and set the target station.
+    station_names = gapfiller.load_data()
+    gapfiller.set_target_station('7024627')
 
-    # Weather data files must be put all together in the input directory.
-    # The outputs produced by the algorithm after a gap-less weather dataset
-    # was produced for the target station will be saved within the output
-    # directory, in a sub-folder named after the name of the target station.
+    # Define the plage over which data needs to be filled.
+    gapfiller.time_start = datetime.strptime('1980-01-01', '%Y-%m-%d')
+    gapfiller.time_end = datetime.strptime('2020-01-01', '%Y-%m-%d')
 
-    gapfill_weather.inputDir = 'C:/Users/User/pygwd/pygwd/tests/data'
-    gapfill_weather.outputDir = 'C:/Users/User/pygwd/pygwd/tests/data/Output'
-
-    # =========================================================================
-    # 3 - Load weather the data files
-    # =========================================================================
-    # Datafiles are loaded directly from the input directory defined in
-    # step 2.
-    stanames = gapfill_weather.load_data()
-    print(stanames)
-
-    # =========================================================================
-    # 4 - Setup target station
-    # =========================================================================
-    gapfill_weather.set_target_station('7023270')
-
-    # =========================================================================
-    # 5 - Define the time plage
-    # =========================================================================
-    # Gaps in the weather data will be filled only between *time_start* and
-    # *time_end*
-    gapfill_weather.time_start = gapfill_weather.WEATHER.datetimes[0]
-    gapfill_weather.time_end = gapfill_weather.WEATHER.datetimes[-1]
-
-    # =========================================================================
-    # 6 - Setup method parameters
-    # =========================================================================
-    # See the help of class *GapFillWeather* for a description of each
-    # parameter.
-    gapfill_weather.NSTAmax = 3
-    gapfill_weather.limitDist = 100
-    gapfill_weather.limitAlt = 350
-    gapfill_weather.full_error_analysis = False
-    gapfill_weather.leave_one_out = False
-    gapfill_weather.regression_mode = 0
+    # Set the gapfill parameters.
+    gapfiller.NSTAmax = 3
+    gapfiller.limitDist = 100
+    gapfiller.limitAlt = 350
+    gapfiller.full_error_analysis = False
+    gapfiller.leave_one_out = False
+    gapfiller.regression_mode = 0
     # 0 -> Least Absolute Deviation (LAD)
     # 1 -> Ordinary Least-Square (OLS)
 
-    # =========================================================================
-    # 7 - Gap-fill the data of the target station
-    # =========================================================================
-    # A gap-less weather dataset will be produced for the target weather
-    # station defined in step 4, for the time plage defined in step 5.
+    y2fill = gapfiller.fill_data2()
 
-    # To run the algorithm in batch mode, simply loop over all the indexes of
-    # the list *staname* where the target station is redefined at each
-    # iteration as in step 4 and rerun the *fill_data* method each time.
+    neighbors = gapfiller.get_valid_neighboring_stations()
+    isnull = gapfiller.wxdatasets.data['Ptot'][neighbors].isnull()
+    groups = isnull.groupby(by=neighbors, axis=0)
+    len(groups)
+    for group in groups:
+        print(group[0])
 
-    gapfill_weather.fill_data()
-
-
-if __name__ == '__main__':
-    main()
+    gapfiller.corcoef
+    
+    
+    
+    
