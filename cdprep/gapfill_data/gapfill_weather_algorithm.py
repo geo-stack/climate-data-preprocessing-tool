@@ -179,6 +179,137 @@ class DataGapfiller(QObject):
         valid_stations.remove(self.target)
         return valid_stations
 
+    def fill_data2(self):
+        # If some missing data can't be completed because all the neighboring
+        # stations are empty, flag_nan is set to True and a comment is
+        # issued at the end of the completion process.
+        flag_nan = False
+
+        neighbors = self.get_valid_neighboring_stations()
+        gapfill_date_range = pd.date_range(
+            start=self.time_start, end=self.time_end, freq='D')
+        y2fill = pd.DataFrame(
+            np.nan, index=gapfill_date_range, columns=VARNAMES)
+        for j, varname in enumerate(VARNAMES):
+            # When a station does not have enough data for a given variable,
+            # its correlation coefficient is set to nan. If all the stations
+            # have a NeN value in the correlation table for a given variable,
+            # it means there is not enough data available overall to estimate
+            # and fill the missing data for that variable.
+            var2fill = (self.corcoef.loc[neighbors]
+                        .dropna(axis=1, how='all').columns.tolist())
+            if varname not in var2fill:
+                msg = ("Variable {} will not be filled because there "
+                       "is not enough data.").format(varname)
+                print(msg)
+                self.sig_console_message.emit(
+                    '<font color=red>%s</font>' % msg)
+                continue
+            tstart = process_time()
+            print('Gapfilling data for variable {}...'.format(varname))
+            
+            isnull = self.wxdatasets.data[varname][neighbors].isnull()
+
+            reg_models = {}
+            for i, date in enumerate(gapfill_date_range):
+                # Determine neighboring stations with data for that date.
+                X_row = self.wxdatasets.data[varname].loc[date]
+                neighbors_with_data = sorted(list(
+                    X_row[neighbors].dropna().index))
+                if len(neighbors_with_data) == 0:
+                    # It is impossible to fill variable because all
+                    # neighboring stations are empty.
+                    flag_nan = True
+                    continue
+
+                # Determines the neighboring stations to include in the
+                # regression model.
+                neighbors_with_data = list(
+                    self.corcoef.loc[neighbors_with_data]
+                    .sort_values(varname, axis=0, ascending=False)
+                    .index
+                    )[:self.NSTAmax]
+                neighbors_combi = ', '.join(neighbors_with_data)
+                if neighbors_combi in reg_models:
+                    # Regression coefficients and RSME are recalled
+                    # from the memory matrices.
+                    A = reg_models[neighbors_combi]
+                else:
+                    # This is the first time this neighboring stations
+                    # combination is encountered in the routine,
+                    # regression coefficients need to be calculated.
+
+                    # The data for the current variable are sorted by
+                    # their stations in in descending correlation
+                    # coefficient.
+                    YX = self.wxdatasets.data[varname][
+                        [self.target] + neighbors_with_data].copy()
+
+                    # Removes row for which a data is missing in the
+                    # target station data series
+                    YX = YX.dropna(subset=[self.target])
+                    ntot = len(YX)
+
+                    # All rows containing at least one nan for the
+                    # neighboring stations are removed
+                    YX = YX.dropna()
+                    nreg = len(YX)
+
+                    # Rows for which precipitation of the target station
+                    # and all the neighboring stations is 0 are removed.
+                    # This is only applicable for precipitation, not air
+                    # temperature.
+                    if varname in ['Ptot']:
+                        YX = YX.loc[(YX != 0).any(axis=1)]
+
+                    # Dependant variable (target)
+                    Y = YX[self.target].values
+
+                    # Independant variables (neighbors)
+                    X = YX[neighbors_with_data].values
+
+                    # Add a unitary array to X for the intercept term if
+                    # variable is a temperature type data.
+                    # (though this was questionned by G. Flerchinger)
+                    if varname in ['Tmax', 'Tavg', 'Tmin']:
+                        X = np.hstack((np.ones((len(Y), 1)), X))
+
+                    # Generate the MLR Model
+                    A = self.build_mlr_model(X, Y)
+
+                    # Calcul the RMSE.
+
+                    # Calculate a RMSE between the estimated and
+                    # measured values of the target station.
+                    # RMSE with 0 value are not accounted for
+                    # in the calcultation.
+                    Yp = np.dot(A, X.transpose())
+
+                    RMSE = (Y - Yp)**2          # MAE = np.abs(Y - Yp)
+                    RMSE = RMSE[RMSE != 0]      # MAE = MAE[MAE!=0]
+                    RMSE = np.mean(RMSE)**0.5   # MAE = np.mean(MAE)
+
+                    # Store values in memory.
+                    reg_models[neighbors_combi] = A
+
+                # Calculate the missing value of Y at row.
+                X_row = X_row[neighbors_with_data].values
+                if varname in ['Tmax', 'Tavg', 'Tmin']:
+                    X_row = np.hstack((1, X_row))
+                Y_row = np.dot(A, X_row)
+
+                # Limit precipitation to positive values.
+                # This may happens when there is one or more negative
+                # regression coefficients in A
+                if varname in ['Ptot']:
+                    Y_row = max(Y_row, 0)
+
+                # Store the results.
+                y2fill.iat[i, j] = Y_row
+            print('Data gapfilled for {} in {:0.1f} sec.'.format(
+                varname, process_time() - tstart))
+        return y2fill
+
     def fill_data(self):
         """
         Fill the missing data for the target station.
