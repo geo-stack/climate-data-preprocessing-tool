@@ -658,38 +658,6 @@ class WeatherDataGapfiller(QWidget):
             self.gapfill_thread.start()
 
 
-class StaLocManager(QWidget):
-    def __init__(self, *args, **kwargs):
-        super(StaLocManager, self).__init__(*args, **kwargs)
-
-        self.figure = MplFigure()
-        self.canvas = FigureCanvasQTAgg(self.figure)
-        toolbar = NavigationToolbar2QT(self.canvas, self)
-
-        layout = QGridLayout()
-        self.setLayout(layout)
-
-        layout.addWidget(toolbar, 0, 0)
-        layout.addWidget(self.canvas, 1, 0)
-
-        self.__init_plot__()
-
-    def __init_plot__(self):
-        self.figure.set_facecolor('white')
-        self.figure.add_subplot(111)
-
-    def plot_stations(self, lat, lon, name):
-        ax = self.figure.axes[0]
-        ax.plot(lon, lat, 'o')
-        for i in range(len(name)):
-            ax.annotate(name[i], xy=(lon[i], lat[i]), textcoords='data')
-
-    def plot_obswells(self, lat, lon, name):
-        ax = self.figure.axes[0]
-        ax.plot(lon, lat, 'o', color='red')
-        ax.annotate(name, xy=(lon, lat), textcoords='data')
-
-
 if __name__ == '__main__':
     import sys
     app = QApplication(sys.argv)
