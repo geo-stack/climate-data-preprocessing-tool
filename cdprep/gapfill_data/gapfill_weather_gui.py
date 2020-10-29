@@ -337,7 +337,6 @@ class WeatherDataGapfiller(QWidget):
     def set_workdir(self, dirname):
         self.__workdir = dirname
         self.gapfill_worker.inputDir = dirname
-        self.gapfill_worker.outputDir = osp.join(dirname, 'Meteo', 'Output')
         self.wxdata_merger.set_workdir(os.path.join(dirname, 'Meteo', 'Input'))
         self.load_data_dir_content()
 
@@ -626,9 +625,6 @@ class WeatherDataGapfiller(QWidget):
 
         # ----------------------------------------------------- START THREAD --
 
-        # -- Pass information to the worker --
-
-        self.gapfill_worker.outputDir = osp.join(self.workdir, "Filled")
         self.gapfill_worker.fig_format = self.fig_format.currentText()
         self.gapfill_worker.fig_language = self.fig_language.currentText()
 

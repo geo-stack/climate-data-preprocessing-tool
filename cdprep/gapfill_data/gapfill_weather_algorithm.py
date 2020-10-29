@@ -89,7 +89,7 @@ class DataGapfiller(QObject):
         self.full_error_analysis = False
 
     @property
-    def outputDir(self):
+    def outputdir(self):
         if self.inputDir is None:
             return None
         else:
@@ -156,7 +156,7 @@ class DataGapfiller(QObject):
                 self.wxdatasets.compute_correlation_coeff(station_id))
 
     def read_summary(self):
-        return self.WEATHER.read_summary(self.outputDir)
+        return self.WEATHER.read_summary(self.outputdir)
 
     def get_valid_neighboring_stations(self):
         """
@@ -348,8 +348,8 @@ class DataGapfiller(QObject):
             ] + gapfilled_data.values.tolist()
 
         # Save the data to csv.
-        if not osp.exists(self.outputDir):
-            os.makedirs(self.outputDir)
+        if not osp.exists(self.outputdir):
+            os.makedirs(self.outputdir)
 
         clean_target_name = (
             target_metadata['Station Name']
@@ -361,7 +361,7 @@ class DataGapfiller(QObject):
             str(max(gapfilled_data['Year']))
             )
 
-        filepath = osp.join(self.outputDir, filename)
+        filepath = osp.join(self.outputdir, filename)
         with open(filepath, 'w', encoding='utf-8') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             writer.writerows(fcontent)
