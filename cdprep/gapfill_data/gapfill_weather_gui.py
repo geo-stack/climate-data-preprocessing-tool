@@ -65,11 +65,11 @@ class WeatherDataGapfiller(QWidget):
         self.setWindowIcon(get_icon('master'))
 
         # Setup the toolbar at the bottom.
-        self.btn_fill = QPushButton('Fill Station')
+        self.btn_fill = QPushButton('Gapfill Data')
         self.btn_fill.setIcon(get_icon('fill_data'))
         self.btn_fill.setIconSize(get_iconsize('small'))
         self.btn_fill.setToolTip(
-            "Fill the gaps in the daily weather data for the selected "
+            "Fill the gaps in the daily weather data of the selected "
             "weather station.")
         self.btn_fill.clicked.connect(self._handle_gapfill_btn_clicked)
 
@@ -77,7 +77,7 @@ class WeatherDataGapfiller(QWidget):
         grid_toolbar = QGridLayout(widget_toolbar)
         grid_toolbar.addWidget(self.btn_fill, 0, 1)
         grid_toolbar.setContentsMargins(0, 0, 0, 0)
-        grid_toolbar.setColumnStretch(1, 100)
+        grid_toolbar.setColumnStretch(0, 100)
 
         # ---- Target Station groupbox
         self.target_station = QComboBox()
@@ -164,8 +164,8 @@ class WeatherDataGapfiller(QWidget):
             self._create_station_selection_criteria(), 3, 0)
         left_panel_layout.addWidget(
             self._create_regression_model_settings(), 4, 0)
-        left_panel_layout.setRowStretch(5, 1)
-        left_panel_layout.addWidget(widget_toolbar, 6, 0)
+        left_panel_layout.addWidget(widget_toolbar, 5, 0)
+        left_panel_layout.setRowStretch(6, 1)
         left_panel_layout.setContentsMargins(0, 0, 0, 0)
 
         # Setup the right panel.
@@ -180,7 +180,6 @@ class WeatherDataGapfiller(QWidget):
         self.sta_display_summary.setFrameStyle(0)
         self.sta_display_summary.document().setDocumentMargin(10)
 
-        # Setup the right panel.
         right_panel = QTabWidget()
         right_panel.addTab(self.corrcoeff_textedit, 'Correlation Coefficients')
         right_panel.addTab(self.sta_display_summary, 'Data Overview')
