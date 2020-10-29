@@ -88,10 +88,6 @@ class DataGapfiller(QObject):
         # data.
         self.full_error_analysis = False
 
-        # A flag to control if data are removed from the
-        # dataset in the cross-validation procedure.
-        self.leave_one_out = False
-
     @property
     def outputDir(self):
         if self.inputDir is None:
