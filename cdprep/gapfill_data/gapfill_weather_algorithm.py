@@ -201,7 +201,7 @@ class DataGapfiller(QObject):
             print('Gapfilling data for variable {}...'.format(varname))
 
             reg_models = {}
-            notnull = gapfiller.wxdatasets.data[varname].loc[
+            notnull = self.wxdatasets.data[varname].loc[
                 gapfill_date_range, neighbors].notnull()
             notnull_groups = notnull.groupby(by=neighbors, axis=0)
             for group in notnull_groups:
