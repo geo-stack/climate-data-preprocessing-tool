@@ -79,7 +79,7 @@ class WeatherDataGapfiller(QWidget):
         # ---- Target Station groupbox
         self.target_station = QComboBox()
         self.target_station.currentIndexChanged.connect(
-            self.handle_target_station_changed)
+            self._handle_target_station_changed)
 
         self.target_station_info = QTextEdit()
         self.target_station_info.setReadOnly(True)
@@ -406,7 +406,7 @@ class WeatherDataGapfiller(QWidget):
         self.target_station_info.setText(target_info)
 
     @QSlot(int)
-    def handle_target_station_changed(self, index):
+    def _handle_target_station_changed(self, index):
         """Handle when the target station is changed by the user."""
         self.btn_delete_data.setEnabled(index != -1)
         if index != -1:
@@ -524,12 +524,7 @@ class WeatherDataGapfiller(QWidget):
             self.restore_gui()
 
     def gap_fill_start(self, sta_indx2fill):
-
-        # ----- Wait for the QThread to finish -----
-
-        # Protection in case the QTread did not had time to close completely
-        # before starting the downloading process for the next station.
-
+        # Wait for the QThread to finish.
         waittime = 0
         while self.gapfill_thread.isRunning():
             print('Waiting for the fill weather data thread to close ' +
@@ -543,8 +538,7 @@ class WeatherDataGapfiller(QWidget):
                 self.ConsoleSignal.emit('<font color=red>%s</font>' % msg)
                 return
 
-        # -------------------------------------------------------- UPDATE UI --
-
+        # Update the GUI.
         self.CORRFLAG = 'off'
         self.target_station.setCurrentIndex(sta_indx2fill)
         self.CORRFLAG = 'on'
@@ -552,39 +546,21 @@ class WeatherDataGapfiller(QWidget):
         # Calculate correlation coefficient for the next station.
         self.update_corrcoeff()
 
-        # ----------------------------------------------------- START THREAD --
-
-        self.gapfill_worker.fig_format = self.fig_format.currentText()
-        self.gapfill_worker.fig_language = self.fig_language.currentText()
-
-        time_start = self.get_time_from_qdatedit(self.date_start_widget)
-        time_end = self.get_time_from_qdatedit(self.date_end_widget)
-        self.gapfill_worker.time_start = time_start
-        self.gapfill_worker.time_end = time_end
-
+        # Start the gapfill thread.
+        self.gapfill_worker.time_start = datetime_from_qdatedit(
+            self.date_start_widget)
+        self.gapfill_worker.time_end = datetime_from_qdatedit(
+            self.date_end_widget)
         self.gapfill_worker.NSTAmax = self.Nmax.value()
         self.gapfill_worker.limitDist = self.distlimit.value()
         self.gapfill_worker.limitAlt = self.altlimit.value()
-
-#        self.gapfill_worker.TARGET = self.TARGET
-
         self.gapfill_worker.regression_mode = self.RMSE_regression.isChecked()
 
-        self.gapfill_worker.full_error_analysis = \
-            self.full_error_analysis.isChecked()
+        self.gapfill_worker.full_error_analysis = (
+            self.full_error_analysis.isChecked())
         self.gapfill_worker.add_ETP = self.add_PET_ckckbox.isChecked()
 
-        # ---- Start the Thread ----
-
-        try:
-            self.gapfill_thread.started.disconnect(
-                self.gapfill_worker.fill_data)
-        except TypeError:
-            # self.gapfill_worker.fill_data is not connected
-            pass
-        finally:
-            self.gapfill_thread.started.connect(self.gapfill_worker.fill_data)
-            self.gapfill_thread.start()
+        self.gapfill_thread.start()
 
 
 if __name__ == '__main__':
