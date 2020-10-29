@@ -15,20 +15,11 @@ import os.path as osp
 # ---- Third party imports
 from PyQt5.QtCore import pyqtSlot as QSlot
 from PyQt5.QtCore import pyqtSignal as QSignal
-from PyQt5.QtCore import Qt, QThread, QDate, QRect
-from PyQt5.QtGui import QBrush, QColor, QFont, QPainter, QCursor, QTextDocument
+from PyQt5.QtCore import Qt, QThread, QDate
 from PyQt5.QtWidgets import (
-    QWidget, QPushButton, QGridLayout, QFrame, QTabWidget, QLabel, QComboBox,
+    QWidget, QPushButton, QGridLayout, QFrame, QLabel, QComboBox,
     QTextEdit, QDateEdit, QSpinBox, QRadioButton, QCheckBox, QProgressBar,
-    QApplication, QMessageBox, QFileDialog, QTableWidget, QHeaderView,
-    QStyleOptionHeader, QStyle, QDesktopWidget, QTableWidgetItem,
-    QToolButton)
-import numpy as np
-from xlrd.xldate import xldate_from_date_tuple
-from xlrd import xldate_as_tuple
-from matplotlib.figure import Figure as MplFigure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+    QApplication, QMessageBox, QToolButton, QTabWidget)
 
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
@@ -37,13 +28,7 @@ from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.widgets.toolpanel import ToolPanel
 from cdprep.utils.ospath import delete_file
-from cdprep.utils.qthelpers import create_separator, xlsdate_from_qdatedit
-# from gwhat.common import StyleDB
-# from gwhat.utils import icons
-# from gwhat.utils.icons import QToolButtonSmall
-# import gwhat.common.widgets as myqt
-# from gwhat.common.utils import delete_file
-# from gwhat.widgets.layout import HSep
+from cdprep.utils.qthelpers import create_separator, datetime_from_qdatedit
 
 
 class WeatherDataGapfiller(QWidget):
@@ -484,9 +469,9 @@ class WeatherDataGapfiller(QWidget):
             return
 
         # Check for dates errors.
-        xlsdate_start = xlsdate_from_qdatedit(self.date_start_widget)
-        xlsdate_end = xlsdate_from_qdatedit(self.date_end_widget)
-        if xlsdate_start > xlsdate_end:
+        datetime_start = datetime_from_qdatedit(self.date_start_widget)
+        datetime_end = datetime_from_qdatedit(self.date_end_widget)
+        if datetime_start > datetime_end:
             QMessageBox.warning(
                 self, 'Warning',
                 ("<i>From</i> date is set to a later time than "
