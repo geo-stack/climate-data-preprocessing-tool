@@ -84,6 +84,7 @@ class MainWindow(QMainWindow):
         self.workdir_btn = QToolButton()
         self.workdir_btn.setIcon(get_icon('folder_open'))
         self.workdir_btn.setAutoRaise(True)
+        self.workdir_btn.setToolTip("Browse a working directory...")
         self.workdir_btn.clicked.connect(self.select_working_directory)
 
         workdir_widget = QWidget()
