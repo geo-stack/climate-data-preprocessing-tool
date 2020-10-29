@@ -19,16 +19,15 @@ from PyQt5.QtCore import Qt, QThread, QDate
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QGridLayout, QFrame, QLabel, QComboBox,
     QTextEdit, QDateEdit, QSpinBox, QRadioButton, QCheckBox, QProgressBar,
-    QApplication, QMessageBox, QToolButton, QTabWidget)
+    QApplication, QMessageBox, QToolButton, QTabWidget, QGroupBox)
 
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
 from cdprep.gapfill_data.gapfill_weather_algorithm import DataGapfiller
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
-from cdprep.widgets.toolpanel import ToolPanel
 from cdprep.utils.ospath import delete_file
-from cdprep.utils.qthelpers import create_separator, datetime_from_qdatedit
+from cdprep.utils.qthelpers import datetime_from_qdatedit
 
 
 class WeatherDataGapfiller(QWidget):
@@ -113,23 +112,17 @@ class WeatherDataGapfiller(QWidget):
         self.btn_delete_data.clicked.connect(self.delete_current_dataset)
 
         # Generate the layout for the target station group widget.
-        widgets = [self.target_station, self.btn_refresh_staList,
-                   btn_merge_data, self.btn_delete_data]
-
-        self.tarSta_widg = QWidget()
-        target_station_layout = QGridLayout(self.tarSta_widg)
+        self.target_widget = QWidget()
+        target_station_layout = QGridLayout(self.target_widget)
         target_station_layout.setHorizontalSpacing(1)
         target_station_layout.setColumnStretch(0, 1)
-        target_station_layout.setContentsMargins(0, 0, 0, 10)
+        target_station_layout.setContentsMargins(0, 0, 0, 0)
 
-        target_station_layout.addWidget(
-            QLabel('<b>Fill data for weather station :</b>'),
-            0, 0, 1, len(widgets))
+        widgets = [self.target_station, self.btn_refresh_staList,
+                   btn_merge_data, self.btn_delete_data]
         target_station_layout.addWidget(self.target_station, 1, 0)
         for col, widget in enumerate(widgets):
             target_station_layout.addWidget(widget, 1, col)
-        target_station_layout.addWidget(
-            self.target_station_info, 2, 0, 1, len(widgets))
 
         # Setup the gapfill dates.
         label_From = QLabel('From :  ')
@@ -155,29 +148,23 @@ class WeatherDataGapfiller(QWidget):
         gapfilldates_layout.setColumnStretch(2, 1)
         gapfilldates_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Setup the stacked widget.
-        self.stack_widget = ToolPanel()
-        self.stack_widget.setIcons(
-            get_icon('chevron_right'), get_icon('chevron_down'))
-        self.stack_widget.addItem(
-            self._create_station_selection_criteria(),
-            'Stations Selection Criteria')
-        self.stack_widget.addItem(
-            self._create_regression_model_settings(),
-            'Regression Model')
-        self.stack_widget.addItem(
-            self._create_advanced_settings(),
-            'Advanced Settings')
+        # Create the gapfill target station groupbox.
+        target_groupbox = QGroupBox("Fill data for weather station")
+        target_layout = QGridLayout(target_groupbox)
+        target_layout.addWidget(self.target_widget, 0, 0)
+        target_layout.addWidget(self.target_station_info, 1, 0)
+        target_layout.addWidget(self.fillDates_widg, 2, 0)
 
         # Setup the left panel.
         self.left_panel = QFrame()
         left_panel_layout = QGridLayout(self.left_panel)
-        left_panel_layout.addWidget(self.tarSta_widg, 0, 0)
-        left_panel_layout.addWidget(self.fillDates_widg, 1, 0)
-        left_panel_layout.addWidget(create_separator(Qt.Horizontal), 2, 0)
-        left_panel_layout.addWidget(self.stack_widget, 3, 0)
-        left_panel_layout.setRowStretch(4, 1)
-        left_panel_layout.addWidget(widget_toolbar, 5, 0)
+        left_panel_layout.addWidget(target_groupbox, 0, 0)
+        left_panel_layout.addWidget(
+            self._create_station_selection_criteria(), 3, 0)
+        left_panel_layout.addWidget(
+            self._create_regression_model_settings(), 4, 0)
+        left_panel_layout.setRowStretch(5, 1)
+        left_panel_layout.addWidget(widget_toolbar, 6, 0)
         left_panel_layout.setContentsMargins(0, 0, 0, 0)
 
         # Setup the right panel.
@@ -245,18 +232,17 @@ class WeatherDataGapfiller(QWidget):
         self.altlimit.setAlignment(Qt.AlignCenter)
         self.altlimit.valueChanged.connect(self.correlation_table_display)
 
-        # Setup the main layout.
-        widget = QFrame()
+        # Setup the main widget.
+        widget = QGroupBox('Stations Selection Criteria')
         layout = QGridLayout(widget)
 
-        layout.addWidget(self.Nmax, 0, 1)
         layout.addWidget(Nmax_label, 0, 0)
+        layout.addWidget(self.Nmax, 0, 1)
         layout.addWidget(distlimit_label, 1, 0)
         layout.addWidget(self.distlimit, 1, 1)
         layout.addWidget(altlimit_label, 2, 0)
         layout.addWidget(self.altlimit, 2, 1)
-        layout.setContentsMargins(10, 0, 10, 0)
-        layout.setColumnStretch(2, 500)
+        layout.setColumnStretch(0, 1)
 
         return widget
 
@@ -294,11 +280,10 @@ class WeatherDataGapfiller(QWidget):
         self.RMSE_regression.setChecked(True)
         self.ABS_regression = QRadioButton('Least Absolute Deviations')
 
-        widget = QFrame()
+        widget = QGroupBox('Regression Model')
         layout = QGridLayout(widget)
         layout.addWidget(self.RMSE_regression, 0, 0)
         layout.addWidget(self.ABS_regression, 1, 0)
-        layout.setContentsMargins(10, 0, 10, 0)
 
         return widget
 
@@ -429,7 +414,7 @@ class WeatherDataGapfiller(QWidget):
         self.btn_fill.setIcon(get_icon('fill_data'))
         self.btn_fill.setEnabled(True)
 
-        self.tarSta_widg.setEnabled(True)
+        self.target_widget.setEnabled(True)
         self.fillDates_widg.setEnabled(True)
         self.stack_widget.setEnabled(True)
 
@@ -486,7 +471,7 @@ class WeatherDataGapfiller(QWidget):
         # Disable GUI and continue the process normally
         self.btn_fill.setEnabled(False)
         self.fillDates_widg.setEnabled(False)
-        self.tarSta_widg.setEnabled(False)
+        self.target_widget.setEnabled(False)
         self.stack_widget.setEnabled(False)
         self.progressbar.show()
 
@@ -550,9 +535,6 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_worker.limitDist = self.distlimit.value()
         self.gapfill_worker.limitAlt = self.altlimit.value()
         self.gapfill_worker.regression_mode = self.RMSE_regression.isChecked()
-
-        self.gapfill_worker.full_error_analysis = (
-            self.full_error_analysis.isChecked())
 
         self.gapfill_thread.start()
 
