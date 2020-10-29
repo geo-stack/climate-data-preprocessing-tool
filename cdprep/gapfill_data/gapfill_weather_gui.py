@@ -690,29 +690,6 @@ class StaLocManager(QWidget):
         ax.annotate(name, xy=(lon, lat), textcoords='data')
 
 
-class GapfillParameters():
-    # Class that contains all the relevant parameters for the gapfilling
-    # procedure. Main instance of this class in the code is <FILLPARAM>.
-
-    def __init__(self):
-
-        self.date_start = 0
-        self.date_end = 0
-        self.index_start = 0
-        self.index_end = 0
-
-        self.regression_mode = True
-
-        # Max number of neighboring station to use in the regression model.
-        self.NSTAmax = 0
-        # Cutoff limit for the horizontal distance between the target and the
-        # neighboring stations.
-        self.limitDist = 0
-        # Cutoff limit for the altitude difference between the target and the
-        # neighboring stations.
-        self.limitAlt = 0
-
-
 if __name__ == '__main__':
     import sys
     app = QApplication(sys.argv)
