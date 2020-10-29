@@ -177,7 +177,7 @@ class DataGapfiller(QObject):
         valid_stations.remove(self.target)
         return valid_stations
 
-    def fill_data(self):
+    def gapfill_data(self):
         tstart_total = process_time()
 
         neighbors = self.get_valid_neighboring_stations()
@@ -1058,4 +1058,4 @@ if __name__ == '__main__':
     # 0 -> Least Absolute Deviation (LAD)
     # 1 -> Ordinary Least-Square (OLS)
 
-    gapfilled_data = gapfiller.fill_data()
+    gapfilled_data = gapfiller.gapfill_data()
