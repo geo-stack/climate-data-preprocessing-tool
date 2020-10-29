@@ -55,6 +55,7 @@ class MainWindow(QMainWindow):
         self.show_data_downloader_btn = QToolButton()
         self.show_data_downloader_btn.setIcon(get_icon('search_weather_data'))
         self.show_data_downloader_btn.setAutoRaise(True)
+        self.show_data_downloader_btn.setToolTip("Download Data")
         self.show_data_downloader_btn.clicked.connect(
             self.data_downloader.show)
 
