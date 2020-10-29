@@ -196,17 +196,18 @@ class WeatherDataGapfiller(QWidget):
         right_panel.addTab(self.corrcoeff_textedit, 'Correlation Coefficients')
         right_panel.addTab(self.sta_display_summary, 'Missing Data Overview')
 
-        # Setup the main grid.
-        main_grid = QGridLayout(self)
-        main_grid.addWidget(self.left_panel, 0, 0)
-        main_grid.addWidget(right_panel, 0, 1)
-        main_grid.setColumnStretch(1, 500)
-        main_grid.setRowStretch(0, 500)
-
         # Setup the progressbar.
         self.progressbar = QProgressBar()
         self.progressbar.setValue(0)
         self.progressbar.hide()
+
+        # Setup the main grid.
+        main_grid = QGridLayout(self)
+        main_grid.addWidget(self.left_panel, 0, 0)
+        main_grid.addWidget(right_panel, 0, 1)
+        main_grid.addWidget(self.progressbar, 1, 0, 1, 2)
+        main_grid.setColumnStretch(1, 500)
+        main_grid.setRowStretch(0, 500)
 
     def _create_station_selection_criteria(self):
         Nmax_label = QLabel('Nbr. of stations :')

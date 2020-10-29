@@ -182,7 +182,8 @@ class DataGapfiller(QObject):
             start=self.time_start, end=self.time_end, freq='D')
         y2fill = pd.DataFrame(
             np.nan, index=gapfill_date_range, columns=VARNAMES)
-        for varname in VARNAMES:
+        self.sig_gapfill_progress.emit(0)
+        for i, varname in enumerate(VARNAMES):
             # When a station does not have enough data for a given variable,
             # its correlation coefficient is set to nan. If all the stations
             # have a NeN value in the correlation table for a given variable,
@@ -292,6 +293,7 @@ class DataGapfiller(QObject):
 
                 # Store the results.
                 y2fill.loc[group_dates, varname] = Y
+            self.sig_gapfill_progress.emit(int((i + 1) / len(VARNAMES) * 100))
             print('Data gapfilled for {} in {:0.1f} sec.'.format(
                 varname, process_time() - tstart))
 
