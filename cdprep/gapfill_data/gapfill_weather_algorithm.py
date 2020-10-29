@@ -47,7 +47,6 @@ class DataGapfiller(QObject):
     limitDist : float
     limitAlt : float
     regression_mode : int
-    add_ETP : bool
     full_error_analysis : bool
     """
     sig_gapfill_progress = QSignal(int)

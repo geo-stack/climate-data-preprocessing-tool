@@ -52,11 +52,12 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_thread.started.connect(self.gapfill_worker.fill_data)
         self.gapfill_worker.sig_gapfill_finished.connect(
             self.gapfill_worker_return)
+        self.gapfill_worker.sig_gapfill_progress.connect(
+            self.progressbar.setValue)
+        self.gapfill_worker.sig_console_message.connect(
+            self.ConsoleSignal.emit)
 
         self.__initUI__()
-
-        # self.gapfill_worker.ProgBarSignal.connect(self.pbar.setValue)
-        # self.gapfill_worker.ConsoleSignal.connect(self.ConsoleSignal.emit)
 
     def __initUI__(self):
         self.setWindowIcon(get_icon('master'))
