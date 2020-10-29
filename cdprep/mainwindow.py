@@ -163,6 +163,7 @@ class MainWindow(QMainWindow):
         """Qt method override to close the project before close the app."""
         self._save_window_geometry()
         self._save_window_state()
+        self.gapfiller.close()
         event.accept()
 
 

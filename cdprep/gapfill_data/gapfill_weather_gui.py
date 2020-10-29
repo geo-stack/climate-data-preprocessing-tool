@@ -22,6 +22,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMessageBox, QToolButton, QTabWidget, QGroupBox)
 
 # ---- Local imports
+from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
 from cdprep.gapfill_data.gapfill_weather_algorithm import DataGapfiller
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
@@ -201,8 +202,7 @@ class WeatherDataGapfiller(QWidget):
         Nmax_label = QLabel('Nbr. of stations :')
         self.Nmax = QSpinBox()
         self.Nmax.setRange(0, 99)
-        self.Nmax.setSingleStep(1)
-        self.Nmax.setValue(4)
+        self.Nmax.setValue(CONF.get('gapfill_data', 'nbr_of_station', 4))
         self.Nmax.setAlignment(Qt.AlignCenter)
 
         ttip = ('<p>Distance limit beyond which neighboring stations'
@@ -213,7 +213,8 @@ class WeatherDataGapfiller(QWidget):
         self.distlimit = QSpinBox()
         self.distlimit.setRange(-1, 9999)
         self.distlimit.setSingleStep(1)
-        self.distlimit.setValue(100)
+        self.distlimit.setValue(
+            CONF.get('gapfill_data', 'max_horiz_dist', 100))
         self.distlimit.setToolTip(ttip)
         self.distlimit.setSuffix(' km')
         self.distlimit.setAlignment(Qt.AlignCenter)
@@ -227,7 +228,8 @@ class WeatherDataGapfiller(QWidget):
         self.altlimit = QSpinBox()
         self.altlimit.setRange(-1, 9999)
         self.altlimit.setSingleStep(1)
-        self.altlimit.setValue(350)
+        self.altlimit.setValue(
+            CONF.get('gapfill_data', 'max_vert_dist', 350))
         self.altlimit.setToolTip(ttip)
         self.altlimit.setSuffix(' m')
         self.altlimit.setAlignment(Qt.AlignCenter)
@@ -278,8 +280,12 @@ class WeatherDataGapfiller(QWidget):
 
     def _create_regression_model_settings(self):
         self.RMSE_regression = QRadioButton('Ordinary Least Squares')
-        self.RMSE_regression.setChecked(True)
+        self.RMSE_regression.setChecked(
+            CONF.get('gapfill_data', 'regression_model', 'OLS') == 'OLS')
+
         self.ABS_regression = QRadioButton('Least Absolute Deviations')
+        self.ABS_regression.setChecked(
+            CONF.get('gapfill_data', 'regression_model', 'OLS') == 'LAD')
 
         widget = QGroupBox('Regression Model')
         layout = QGridLayout(widget)
@@ -539,6 +545,14 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_worker.regression_mode = self.RMSE_regression.isChecked()
 
         self.gapfill_thread.start()
+
+    def close(self):
+        CONF.set('gapfill_data', 'nbr_of_station', self.Nmax.value())
+        CONF.set('gapfill_data', 'max_horiz_dist', self.distlimit.value())
+        CONF.set('gapfill_data', 'max_vert_dist', self.altlimit.value())
+        CONF.set('gapfill_data', 'regression_model',
+                 'OLS' if self.RMSE_regression.isChecked() else 'LAD')
+        super().close()
 
 
 if __name__ == '__main__':
