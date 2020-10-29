@@ -179,9 +179,10 @@ class WeatherDataGapfiller(QWidget):
         self.sta_display_summary.setFrameStyle(0)
         self.sta_display_summary.document().setDocumentMargin(10)
 
+        # Setup the right panel.
         right_panel = QTabWidget()
         right_panel.addTab(self.corrcoeff_textedit, 'Correlation Coefficients')
-        right_panel.addTab(self.sta_display_summary, 'Missing Data Overview')
+        right_panel.addTab(self.sta_display_summary, 'Data Overview')
 
         # Setup the progressbar.
         self.progressbar = QProgressBar()
@@ -339,7 +340,8 @@ class WeatherDataGapfiller(QWidget):
         station_ids = self.gapfill_worker.wxdatasets.station_ids
         for station_name, station_id in zip(station_names, station_ids):
             self.target_station.addItem(station_name, userData=station_id)
-        self.sta_display_summary.setHtml(self.gapfill_worker.read_summary())
+        self.sta_display_summary.setHtml(
+            self.gapfill_worker.generate_html_summary_table())
 
         if len(station_names) > 0:
             self.set_fill_and_save_dates()
