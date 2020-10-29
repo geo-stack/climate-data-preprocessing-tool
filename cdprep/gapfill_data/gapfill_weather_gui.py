@@ -196,9 +196,9 @@ class WeatherDataGapfiller(QWidget):
         main_grid.setRowStretch(0, 500)
 
         # Setup the progressbar.
-        self.pbar = QProgressBar()
-        self.pbar.setValue(0)
-        self.pbar.hide()
+        self.progressbar = QProgressBar()
+        self.progressbar.setValue(0)
+        self.progressbar.hide()
 
         # Setup the events.
 
@@ -435,9 +435,9 @@ class WeatherDataGapfiller(QWidget):
         self.fillDates_widg.setEnabled(True)
         self.stack_widget.setEnabled(True)
 
-        self.pbar.setValue(0)
+        self.progressbar.setValue(0)
         QApplication.processEvents()
-        self.pbar.hide()
+        self.progressbar.hide()
 
     def get_gapfill_parameters(self):
         """
@@ -491,7 +491,7 @@ class WeatherDataGapfiller(QWidget):
         self.fillDates_widg.setEnabled(False)
         self.tarSta_widg.setEnabled(False)
         self.stack_widget.setEnabled(False)
-        self.pbar.show()
+        self.progressbar.show()
 
         sta_indx2fill = self.target_station.currentIndex()
         self.gap_fill_start(sta_indx2fill)
