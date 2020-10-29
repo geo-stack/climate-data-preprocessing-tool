@@ -12,6 +12,7 @@
 # ---- Third party imports
 from PyQt5.QtCore import QByteArray, Qt
 from PyQt5.QtWidgets import QWidget, QSizePolicy, QFrame
+from xlrd.xldate import xldate_from_date_tuple
 
 
 def create_separator(orientation):
@@ -21,6 +22,13 @@ def create_separator(orientation):
     else:
         frame.setFrameStyle(52)
     return frame
+
+
+def xlsdate_from_qdatedit(self, qdatedit):
+    y = qdatedit.date().year()
+    m = qdatedit.date().month()
+    d = qdatedit.date().day()
+    return xldate_from_date_tuple((y, m, d), 0)
 
 
 def qbytearray_to_hexstate(qba):

@@ -38,7 +38,7 @@ from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.widgets.toolpanel import ToolPanel
 from cdprep.utils.ospath import delete_file
-from cdprep.utils.qthelpers import create_separator
+from cdprep.utils.qthelpers import create_separator, xlsdate_from_qdatedit
 # from gwhat.common import StyleDB
 # from gwhat.utils import icons
 # from gwhat.utils.icons import QToolButtonSmall
