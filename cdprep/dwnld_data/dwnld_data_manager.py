@@ -137,8 +137,7 @@ class WeatherStationDownloader(QWidget):
         self.lat_spinBox = QDoubleSpinBox()
         self.lat_spinBox.setAlignment(Qt.AlignCenter)
         self.lat_spinBox.setSingleStep(0.1)
-        self.lat_spinBox.setValue(CONF.get(
-            'weather_data_download_tool', 'latitude', 0))
+        self.lat_spinBox.setValue(CONF.get('download_data', 'latitude', 0))
         self.lat_spinBox.setMinimum(0)
         self.lat_spinBox.setMaximum(180)
         self.lat_spinBox.setSuffix(u' °')
@@ -147,8 +146,7 @@ class WeatherStationDownloader(QWidget):
         self.lon_spinBox = QDoubleSpinBox()
         self.lon_spinBox.setAlignment(Qt.AlignCenter)
         self.lon_spinBox.setSingleStep(0.1)
-        self.lon_spinBox.setValue(CONF.get(
-            'weather_data_download_tool', 'longitude', 0))
+        self.lon_spinBox.setValue(CONF.get('download_data', 'longitude', 0))
         self.lon_spinBox.setMinimum(0)
         self.lon_spinBox.setMaximum(180)
         self.lon_spinBox.setSuffix(u' °')
@@ -157,14 +155,14 @@ class WeatherStationDownloader(QWidget):
         self.radius_SpinBox = QComboBox()
         self.radius_SpinBox.addItems(['25 km', '50 km', '100 km', '200 km'])
         self.radius_SpinBox.setCurrentIndex(CONF.get(
-            'weather_data_download_tool', 'radius_index', 0))
+            'download_data', 'radius_index', 0))
         self.radius_SpinBox.currentIndexChanged.connect(
             self.search_filters_changed)
 
         self.prox_grpbox = QGroupBox("Proximity Filter")
         self.prox_grpbox.setCheckable(True)
         self.prox_grpbox.setChecked(CONF.get(
-            'weather_data_download_tool', 'proximity_filter', False))
+            'download_data', 'proximity_filter', False))
         self.prox_grpbox.toggled.connect(self.proximity_grpbox_toggled)
 
         prox_search_grid = QGridLayout(self.prox_grpbox)
@@ -183,7 +181,7 @@ class WeatherStationDownloader(QWidget):
         self.prov_widg = QComboBox()
         self.prov_widg.addItems(['All'] + self.PROV_NAME)
         self.prov_widg.setCurrentIndex(CONF.get(
-            'weather_data_download_tool', 'province_index', 0))
+            'download_data', 'province_index', 0))
         self.prov_widg.currentIndexChanged.connect(self.search_filters_changed)
 
         prov_grpbox = QGroupBox()
@@ -201,7 +199,7 @@ class WeatherStationDownloader(QWidget):
         self.nbrYear.setSingleStep(1)
         self.nbrYear.setMinimum(0)
         self.nbrYear.setValue(CONF.get(
-            'weather_data_download_tool', 'min_nbr_of_years', 3))
+            'download_data', 'min_nbr_of_years', 3))
         self.nbrYear.valueChanged.connect(self.search_filters_changed)
 
         subgrid1 = QGridLayout()
@@ -219,7 +217,7 @@ class WeatherStationDownloader(QWidget):
         self.minYear.setMinimum(1840)
         self.minYear.setMaximum(now.year)
         self.minYear.setValue(CONF.get(
-            'weather_data_download_tool', 'year_range_left_bound', 1840))
+            'download_data', 'year_range_left_bound', 1840))
         self.minYear.valueChanged.connect(self.minYear_changed)
 
         label_and = QLabel('and')
@@ -231,7 +229,7 @@ class WeatherStationDownloader(QWidget):
         self.maxYear.setMinimum(1840)
         self.maxYear.setMaximum(now.year)
         self.maxYear.setValue(CONF.get(
-            'weather_data_download_tool', 'year_range_right_bound', now.year))
+            'download_data', 'year_range_right_bound', now.year))
 
         self.maxYear.valueChanged.connect(self.maxYear_changed)
 
@@ -248,7 +246,7 @@ class WeatherStationDownloader(QWidget):
         self.year_widg = QGroupBox("Data Availability filter")
         self.year_widg.setCheckable(True)
         self.year_widg.setChecked(CONF.get(
-            'weather_data_download_tool', 'data_availability_filter', False))
+            'download_data', 'data_availability_filter', False))
         self.year_widg.toggled.connect(self.search_filters_changed)
 
         grid = QGridLayout(self.year_widg)
@@ -454,33 +452,24 @@ class WeatherStationDownloader(QWidget):
 
     def closeEvent(self, event):
         # Proximity Filter Options.
-        CONF.set(
-            'weather_data_download_tool', 'proximity_filter',
-            self.prox_grpbox.isChecked())
-        CONF.set(
-            'weather_data_download_tool', 'latitude', self.lat)
-        CONF.set(
-            'weather_data_download_tool', 'longitude', self.lon)
-        CONF.set(
-            'weather_data_download_tool', 'radius_index',
-            self.radius_SpinBox.currentIndex())
-        CONF.set(
-            'weather_data_download_tool', 'province_index',
-            self.prov_widg.currentIndex())
+        CONF.set('download_data', 'proximity_filter',
+                 self.prox_grpbox.isChecked())
+        CONF.set('download_data', 'latitude', self.lat)
+        CONF.set('download_data', 'longitude', self.lon)
+        CONF.set('download_data', 'radius_index',
+                 self.radius_SpinBox.currentIndex())
+        CONF.set('download_data', 'province_index',
+                 self.prov_widg.currentIndex())
 
         # Data Availability Filter Options.
-        CONF.set(
-            'weather_data_download_tool', 'data_availability_filter',
-            self.year_widg.isChecked())
-        CONF.set(
-            'weather_data_download_tool', 'min_nbr_of_years',
-            self.nbrYear.value())
-        CONF.set(
-            'weather_data_download_tool', 'year_range_left_bound',
-            self.minYear.value())
-        CONF.set(
-            'weather_data_download_tool', 'year_range_right_bound',
-            self.maxYear.value())
+        CONF.set('download_data', 'data_availability_filter',
+                 self.year_widg.isChecked())
+        CONF.set('download_data', 'min_nbr_of_years',
+                 self.nbrYear.value())
+        CONF.set('download_data', 'year_range_left_bound',
+                 self.minYear.value())
+        CONF.set('download_data', 'year_range_right_bound',
+                 self.maxYear.value())
         event.accept()
 
     def minYear_changed(self):
@@ -772,7 +761,7 @@ class RawDataDownloader(QObject):
             progress = (year - yr_start+1) / (yr_end+1 - yr_start) * 100
             self.sig_update_pbar.emit(int(progress))
 
-            if self.ERRFLAG[i] == 1:                         # pragma: no cover
+            if self.ERRFLAG[i] == 1:
                 self.ConsoleSignal.emit(
                     '''<font color=red>There was a problem downloading the
                          data of station %s for year %d.
