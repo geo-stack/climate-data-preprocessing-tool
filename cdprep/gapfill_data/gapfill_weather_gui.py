@@ -39,7 +39,6 @@ from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.widgets.toolpanel import ToolPanel
 from cdprep.utils.ospath import delete_file
 from cdprep.utils.qthelpers import create_separator
-# from gwhat.meteo.weather_reader import add_PET_to_weather_datafile
 # from gwhat.common import StyleDB
 # from gwhat.utils import icons
 # from gwhat.utils.icons import QToolButtonSmall
@@ -84,22 +83,13 @@ class WeatherDataGapfiller(QWidget):
         self.btn_fill.setToolTip(
             "Fill the gaps in the daily weather data for the selected "
             "weather station.")
-
-        self.btn_fill_all = QPushButton('Fill All Stations')
-        self.btn_fill_all.setIconSize(get_iconsize('small'))
-        self.btn_fill_all.setIcon(get_icon('fill_all_data'))
-        self.btn_fill_all.setToolTip(
-            "Fill the gaps in the daily weather data for all the weather "
-            "stations displayed in the list.")
+        self.btn_fill.clicked.connect(self._handle_gapfill_btn_clicked)
 
         widget_toolbar = QFrame()
         grid_toolbar = QGridLayout(widget_toolbar)
         grid_toolbar.addWidget(self.btn_fill, 0, 1)
-        grid_toolbar.addWidget(self.btn_fill_all, 0, 2)
-        grid_toolbar.setSpacing(5)
         grid_toolbar.setContentsMargins(0, 0, 0, 0)
-        grid_toolbar.setColumnStretch(0, 100)
-        grid_toolbar.setColumnStretch(3, 100)
+        grid_toolbar.setColumnStretch(1, 100)
 
         # ---- Target Station groupbox
         self.target_station = QComboBox()
@@ -234,10 +224,6 @@ class WeatherDataGapfiller(QWidget):
             self.correlation_table_display)
         self.date_end_widget.dateChanged.connect(
             self.correlation_table_display)
-
-        # GAPFILL :
-        self.btn_fill.clicked.connect(self.gap_fill_btn_clicked)
-        self.btn_fill_all.clicked.connect(self.gap_fill_btn_clicked)
 
     def _create_station_selection_criteria(self):
         Nmax_label = QLabel('Nbr. of stations :')
