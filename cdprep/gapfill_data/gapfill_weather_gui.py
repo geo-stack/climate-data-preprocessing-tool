@@ -431,9 +431,6 @@ class WeatherDataGapfiller(QWidget):
         self.btn_fill.setIcon(get_icon('fill_data'))
         self.btn_fill.setEnabled(True)
 
-        self.btn_fill_all.setIcon(get_icon('fill_all_data'))
-        self.btn_fill_all.setEnabled(True)
-
         self.tarSta_widg.setEnabled(True)
         self.fillDates_widg.setEnabled(True)
         self.stack_widget.setEnabled(True)
