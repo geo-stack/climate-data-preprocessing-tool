@@ -66,8 +66,6 @@ class DataGapfiller(QObject):
         self.WEATHER = self.wxdatasets = WeatherData()
 
         self.inputDir = None
-
-        self.STOP = False  # Flag used to stop the algorithm from a GUI
         self.isParamsValid = False
 
         # ---- Define Parameters Default

@@ -464,7 +464,7 @@ class WeatherDataGapfiller(QWidget):
         """
         Handle when the user clicked on the gapfill button.
         """
-        if len(self.gapfill_worker.wxdatasets.count()) == 0:
+        if self.gapfill_worker.wxdatasets.count() == 0:
             QMessageBox.warning(
                 self, 'Warning', "There is no data to fill.", QMessageBox.Ok)
             return
@@ -488,12 +488,12 @@ class WeatherDataGapfiller(QWidget):
 
         # Disable GUI and continue the process normally
         self.btn_fill.setEnabled(False)
-        self.isFillAll_inProgress = False
         self.fillDates_widg.setEnabled(False)
         self.tarSta_widg.setEnabled(False)
         self.stack_widget.setEnabled(False)
         self.progressbar.show()
 
+        self.isFillAll_inProgress = False
         sta_indx2fill = self.target_station.currentIndex()
         self.gap_fill_start(sta_indx2fill)
 
@@ -504,15 +504,13 @@ class WeatherDataGapfiller(QWidget):
         process normally.
         """
         self.gapfill_thread.quit()
-
-        nSTA = len(self.gapfill_worker.WEATHER.STANAME)
         if event:
             sta_indx2fill = self.target_station.currentIndex() + 1
-            if self.isFillAll_inProgress is False or sta_indx2fill == nSTA:
+            if (self.isFillAll_inProgress is False or
+                    sta_indx2fill == self.gapfill_worker.wxdatasets.count()):
                 # Single fill process completed sucessfully for the current
                 # selected weather station OR Fill All process completed
                 # sucessfully for all the weather stations in the list.
-                self.gapfill_worker.STOP = False
                 self.isFillAll_inProgress = False
                 self.restore_gui()
             else:
@@ -520,7 +518,6 @@ class WeatherDataGapfiller(QWidget):
         else:
             print('Gap-filling routine stopped.')
             # The gapfilling routine was stopped from the UI.
-            self.gapfill_worker.STOP = False
             self.isFillAll_inProgress = False
             self.restore_gui()
 
