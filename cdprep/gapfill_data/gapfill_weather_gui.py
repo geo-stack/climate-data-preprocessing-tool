@@ -136,10 +136,15 @@ class WeatherDataGapfiller(QWidget):
         self.date_start_widget = QDateEdit()
         self.date_start_widget.setDisplayFormat('dd / MM / yyyy')
         self.date_start_widget.setEnabled(False)
+        self.date_start_widget.dateChanged.connect(
+            self.correlation_table_display)
+
         label_To = QLabel('To :  ')
         self.date_end_widget = QDateEdit()
         self.date_end_widget.setEnabled(False)
         self.date_end_widget.setDisplayFormat('dd / MM / yyyy')
+        self.date_end_widget.dateChanged.connect(
+            self.correlation_table_display)
 
         self.fillDates_widg = QWidget()
         gapfilldates_layout = QGridLayout(self.fillDates_widg)
@@ -203,16 +208,6 @@ class WeatherDataGapfiller(QWidget):
         self.progressbar.setValue(0)
         self.progressbar.hide()
 
-        # Setup the events.
-
-        # CORRELATION :
-        self.distlimit.valueChanged.connect(self.correlation_table_display)
-        self.altlimit.valueChanged.connect(self.correlation_table_display)
-        self.date_start_widget.dateChanged.connect(
-            self.correlation_table_display)
-        self.date_end_widget.dateChanged.connect(
-            self.correlation_table_display)
-
     def _create_station_selection_criteria(self):
         Nmax_label = QLabel('Nbr. of stations :')
         self.Nmax = QSpinBox()
@@ -233,6 +228,7 @@ class WeatherDataGapfiller(QWidget):
         self.distlimit.setToolTip(ttip)
         self.distlimit.setSuffix(' km')
         self.distlimit.setAlignment(Qt.AlignCenter)
+        self.distlimit.valueChanged.connect(self.correlation_table_display)
 
         ttip = ('<p>Altitude difference limit over which neighboring '
                 ' stations are excluded from the gapfilling procedure.</p>'
@@ -246,6 +242,7 @@ class WeatherDataGapfiller(QWidget):
         self.altlimit.setToolTip(ttip)
         self.altlimit.setSuffix(' m')
         self.altlimit.setAlignment(Qt.AlignCenter)
+        self.altlimit.valueChanged.connect(self.correlation_table_display)
 
         # Setup the main layout.
         widget = QFrame()
