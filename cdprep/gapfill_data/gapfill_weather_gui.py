@@ -65,12 +65,12 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_worker = DataGapfiller()
         self.gapfill_thread = QThread()
         self.gapfill_worker.moveToThread(self.gapfill_thread)
+        self.gapfill_worker.sig_gapfill_finished.connect(
+            self.gapfill_worker_return)
 
         self.__initUI__()
 
         # self.gapfill_worker.ProgBarSignal.connect(self.pbar.setValue)
-        # self.gapfill_worker.GapFillFinished.connect(
-                                                   # self.gapfill_worker_return)
         # self.gapfill_worker.ConsoleSignal.connect(self.ConsoleSignal.emit)
 
     def __initUI__(self):
@@ -479,7 +479,7 @@ class WeatherDataGapfiller(QWidget):
 
         return xldate_from_date_tuple((y, m, d), 0)
 
-    def gap_fill_btn_clicked(self):
+    def _handle_gapfill_btn_clicked(self):
 
         # ----------------------------------------- Stop Thread if Running ----
 
