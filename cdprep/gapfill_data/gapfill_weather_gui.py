@@ -32,8 +32,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 
 # ---- Local imports
 from cdprep.config.icons import get_icon, get_iconsize
-from cdprep.gapfill_data.gapfill_weather_algorithm import (
-    DataGapfiller, VARNAMES)
+from cdprep.gapfill_data.gapfill_weather_algorithm import DataGapfiller
 from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.widgets.toolpanel import ToolPanel
@@ -65,6 +64,7 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_worker = DataGapfiller()
         self.gapfill_thread = QThread()
         self.gapfill_worker.moveToThread(self.gapfill_thread)
+        self.gapfill_thread.started.connect(self.gapfill_worker.fill_data)
         self.gapfill_worker.sig_gapfill_finished.connect(
             self.gapfill_worker_return)
 
@@ -474,86 +474,41 @@ class WeatherDataGapfiller(QWidget):
         return [self.target_station.itemText(i) for i in
                 range(self.target_station.count())]
 
-    def get_time_from_qdatedit(self, obj):
-
-        y = obj.date().year()
-        m = obj.date().month()
-        d = obj.date().day()
-
-        return xldate_from_date_tuple((y, m, d), 0)
-
     def _handle_gapfill_btn_clicked(self):
-
-        # ----------------------------------------- Stop Thread if Running ----
-
-        if self.gapfill_thread.isRunning():
-
-            print('!Stopping the gap-filling routine!')
-
-            # ---- Pass a flag to the worker to tell him to stop ----
-
-            self.gapfill_worker.STOP = True
-            self.isFillAll_inProgress = False
-            # UI will be restored in *gapfill_worker_return* method
-
+        """
+        Handle when the user clicked on the gapfill button.
+        """
+        if len(self.gapfill_worker.wxdatasets.count()) == 0:
+            QMessageBox.warning(
+                self, 'Warning', "There is no data to fill.", QMessageBox.Ok)
             return
 
-        # ---------------------------------------------------- Data is Empty --
-
-        # Check if Station List is Empty :
-
-        nSTA = len(self.gapfill_worker.WEATHER.STANAME)
-        if nSTA == 0:
-            msg = ('There is no data to fill.')
-            btn = QMessageBox.Ok
-            QMessageBox.warning(self, 'Warning', msg, btn)
-
+        # Check for dates errors.
+        xlsdate_start = xlsdate_from_qdatedit(self.date_start_widget)
+        xlsdate_end = xlsdate_from_qdatedit(self.date_end_widget)
+        if xlsdate_start > xlsdate_end:
+            QMessageBox.warning(
+                self, 'Warning',
+                ("<i>From</i> date is set to a later time than "
+                 "the <i>To</i> date."),
+                QMessageBox.Ok)
+            return
+        if self.target_station.currentIndex() == -1:
+            QMessageBox.warning(
+                self, 'Warning',
+                "No weather station is currently selected",
+                QMessageBox.Ok)
             return
 
-        # ------------------------------------------- CHECK FOR DATES ERRORS --
-
-        time_start = self.get_time_from_qdatedit(self.date_start_widget)
-        time_end = self.get_time_from_qdatedit(self.date_end_widget)
-
-        if time_start > time_end:
-            print('The time period is invalid.')
-            msg = ('<i>From</i> date is set to a later time than '
-                   'the <i>To</i> date.')
-            btn = QMessageBox.Ok
-            QMessageBox.warning(self, 'Warning', msg, btn)
-            return
-
-        # --------------------------------------------- Check Which Button ----
-
-        button = self.sender()
-        if button == self.btn_fill:
-            if self.target_station.currentIndex() == -1:
-                # Check if Station is Selected.
-                msg = 'No weather station is currently selected'
-                btn = QMessageBox.Ok
-                QMessageBox.warning(self, 'Warning', msg, btn)
-                return
-
-            self.btn_fill_all.setEnabled(False)
-            self.isFillAll_inProgress = False
-            sta_indx2fill = self.target_station.currentIndex()
-
-        elif button == self.btn_fill_all:
-            # Fill All Stations
-            self.btn_fill.setEnabled(False)
-            self.isFillAll_inProgress = True
-            sta_indx2fill = 0
-
-        # -- Disable UI and continue the process normally --
-
-        button.setIcon(get_icon('stop'))
+        # Disable GUI and continue the process normally
+        self.btn_fill.setEnabled(False)
+        self.isFillAll_inProgress = False
         self.fillDates_widg.setEnabled(False)
         self.tarSta_widg.setEnabled(False)
         self.stack_widget.setEnabled(False)
         self.pbar.show()
 
-        QApplication.processEvents()
-
+        sta_indx2fill = self.target_station.currentIndex()
         self.gap_fill_start(sta_indx2fill)
 
     def gapfill_worker_return(self, event):
