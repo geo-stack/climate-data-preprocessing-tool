@@ -45,11 +45,10 @@ class WeatherDataGapfiller(QWidget):
         self.CORRFLAG = 'on'
         self.wxdata_merger = WXDataMergerWidget()
 
+        self.__initUI__()
+
         # Setup gap fill worker and thread :
         self.gapfill_worker = DataGapfiller()
-        self.gapfill_thread = QThread()
-        self.gapfill_worker.moveToThread(self.gapfill_thread)
-        self.gapfill_thread.started.connect(self.gapfill_worker.fill_data)
         self.gapfill_worker.sig_gapfill_finished.connect(
             self.gapfill_worker_return)
         self.gapfill_worker.sig_gapfill_progress.connect(
@@ -57,7 +56,10 @@ class WeatherDataGapfiller(QWidget):
         self.gapfill_worker.sig_console_message.connect(
             self.ConsoleSignal.emit)
 
-        self.__initUI__()
+        self.gapfill_thread = QThread()
+        self.gapfill_worker.moveToThread(self.gapfill_thread)
+        self.gapfill_thread.started.connect(
+            self.gapfill_worker.gapfill_data)
 
     def __initUI__(self):
         self.setWindowIcon(get_icon('master'))
@@ -362,7 +364,7 @@ class WeatherDataGapfiller(QWidget):
             self.target_station.setCurrentIndex(0)
             self.target_station.blockSignals(False)
         self.CORRFLAG = 'on'
-        self.handle_target_station_changed(self.target_station.currentIndex())
+        self._handle_target_station_changed(self.target_station.currentIndex())
 
     def set_fill_and_save_dates(self):
         """
@@ -556,7 +558,6 @@ class WeatherDataGapfiller(QWidget):
 
         self.gapfill_worker.full_error_analysis = (
             self.full_error_analysis.isChecked())
-        self.gapfill_worker.add_ETP = self.add_PET_ckckbox.isChecked()
 
         self.gapfill_thread.start()
 

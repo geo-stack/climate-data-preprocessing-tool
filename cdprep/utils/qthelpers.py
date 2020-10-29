@@ -27,7 +27,7 @@ def create_separator(orientation):
     return frame
 
 
-def xlsdate_from_qdatedit(self, qdatedit):
+def xlsdate_from_qdatedit(qdatedit):
     """
     Return the Excel date corresponding to the value of the provided
     Qt date edit widget.
@@ -38,7 +38,7 @@ def xlsdate_from_qdatedit(self, qdatedit):
     return xldate_from_date_tuple((y, m, d), 0)
 
 
-def datetime_from_qdatedit(self, qdatedit):
+def datetime_from_qdatedit(qdatedit):
     """
     Return the Python datetime object corresponding to the value of
     the provided Qt date edit widget.
