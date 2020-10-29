@@ -321,6 +321,9 @@ class WeatherDataGapfiller(QWidget):
         return self.__workdir
 
     def set_workdir(self, dirname):
+        """
+        Set the working directory to dirname.
+        """
         self.__workdir = dirname
         self.gapfill_worker.inputDir = dirname
         self.wxdata_merger.set_workdir(os.path.join(dirname, 'Meteo', 'Input'))
