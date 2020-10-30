@@ -7,9 +7,15 @@
 # Licensed under the terms of the GNU General Public License.
 # -----------------------------------------------------------------------------
 
-# ---- Standard imports
+from cdprep import __appname__
+print('Starting {}...'.format(__appname__))
+
+# ---- Setup the main Qt application.
 import sys
-import os
+from qtpy.QtWidgets import QApplication
+app = QApplication(sys.argv)
+
+# ---- Standard imports
 import os.path as osp
 import platform
 
@@ -28,8 +34,7 @@ from cdprep.dwnld_data.dwnld_data_manager import WeatherStationDownloader
 from cdprep.gapfill_data.gapfill_weather_gui import WeatherDataGapfiller
 from cdprep.utils.qthelpers import (
     create_toolbar_stretcher, qbytearray_to_hexstate, hexstate_to_qbytearray)
-from cdprep.config.ospath import (
-    get_select_file_dialog_dir, set_select_file_dialog_dir)
+from cdprep.config.ospath import set_select_file_dialog_dir
 
 
 class MainWindow(QMainWindow):
@@ -189,7 +194,12 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    mainwindow = MainWindow()
-    mainwindow.show()
+    sys.excepthook = except_hook
+    main = MainWindow()
+
+    if platform.system() == 'Windows':
+        from PyQt5.QtWidgets import QStyleFactory
+        app.setStyle(QStyleFactory.create('WindowsVista'))
+
+    main.show()
     sys.exit(app.exec_())
