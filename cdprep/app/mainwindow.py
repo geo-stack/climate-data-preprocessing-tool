@@ -65,6 +65,7 @@ class MainWindow(QMainWindow):
             self.show_data_downloader)
 
         toolbar = QToolBar('Main')
+        toolbar.setObjectName('main_toolbar')
         toolbar.setFloatable(False)
         toolbar.setMovable(False)
         toolbar.setIconSize(get_iconsize('normal'))
