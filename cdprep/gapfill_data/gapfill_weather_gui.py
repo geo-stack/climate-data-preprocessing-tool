@@ -25,7 +25,6 @@ from PyQt5.QtWidgets import (
 from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
 from cdprep.gapfill_data.gapfill_weather_algorithm import DataGapfiller
-from cdprep.gapfill_data.gapfill_weather_postprocess import PostProcessErr
 from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.utils.ospath import delete_file
 from cdprep.utils.qthelpers import datetime_from_qdatedit
@@ -251,12 +250,6 @@ class WeatherDataGapfiller(QWidget):
     def _create_advanced_settings(self):
         self.full_error_analysis = QCheckBox('Full Error Analysis.')
         self.full_error_analysis.setChecked(True)
-
-        self.fig_format = QComboBox()
-        self.fig_format.addItems(PostProcessErr.SUPPORTED_FIG_FORMATS)
-
-        self.fig_language = QComboBox()
-        self.fig_language.addItems(PostProcessErr.SUPPORTED_LANGUAGES)
 
         fig_opt_layout = QGridLayout()
         fig_opt_layout.addWidget(QLabel("Figure output format : "), 0, 0)
