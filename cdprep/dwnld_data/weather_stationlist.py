@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-
-# Copyright © 2014-2018 GWHAT Project Contributors
-# https://github.com/jnsebgosselin/gwhat
+# -----------------------------------------------------------------------------
+# Copyright © Climate Data Preprocessing Tool Project Contributors
+# https://github.com/cgq-qgc/climate-data-preprocessing-tool
 #
-# This file is part of GWHAT (Ground-Water Hydrograph Analysis Toolbox).
+# This file is part of Climate Data Preprocessing Tool.
 # Licensed under the terms of the GNU General Public License.
-
+#
 # The CheckBoxDelegate and its implementation in the WeatherStationModel is
 # based on the codes provided by StackOverflow users Frodon and drexiya.
 # https://stackoverflow.com/questions/17748546
+# -----------------------------------------------------------------------------
 
-# https://github.com/spyder-ide/spyder
 
 # ---- Standard imports
 import os
@@ -27,7 +27,7 @@ from PyQt5.QtWidgets import (
     QItemDelegate, QStyleOptionButton, QHeaderView)
 
 # ---- Local imports
-from gwhat.common.utils import (calc_dist_from_coord, save_content_to_file)
+from cdprep.utils.maths import calc_dist_from_coord
 
 
 class WeatherSationList(list):
@@ -97,12 +97,6 @@ class WeatherSationList(list):
         file_content = copy(self)
         file_content.insert(0, self.HEADER)
         return file_content
-
-    def save_to_file(self, filename):
-        """Save the content of the station list to file."""
-        if filename:
-            save_content_to_file(filename, self.get_file_content())
-            print('Station list saved successfully in %s' % filename)
 
     def format_list_in_html(self):
         """Format the content of the weather station list into a HTML table."""
@@ -407,22 +401,3 @@ class CheckBoxDelegate(QStyledItemDelegate):
         else:
             return super(CheckBoxDelegate, self).editorEvent(event, model,
                                                              option, index)
-
-
-if __name__ == '__main__':
-    # fname = ("C:\\Users\\jsgosselin\\OneDrive\\GWHAT\\gwhat\\tests\\"
-    #          "@ new-prô'jèt!\\weather_station_list.lst")
-    # stationlist = WeatherSationList(fname)
-    # filecontent = stationlist.get_file_content()
-
-    from gwhat.meteo.weather_station_finder import WeatherStationFinder
-    stn_browser = WeatherStationFinder()
-    stn_browser.load_database()
-    stationlist = stn_browser.get_stationlist()
-
-    app = QApplication(sys.argv)
-    view = WeatherSationView()
-    view.populate_table(stationlist)
-    view.show()
-
-    sys.exit(app.exec_())
