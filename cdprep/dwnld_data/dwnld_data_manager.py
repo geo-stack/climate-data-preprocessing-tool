@@ -436,20 +436,6 @@ class WeatherStationDownloader(QWidget):
             self.waitspinnerbar.hide()
 
     # ---- GUI handlers
-    def show(self):
-        super().show()
-        qr = self.frameGeometry()
-        if self.parent():
-            parent = self.parent()
-            wp = parent.frameGeometry().width()
-            hp = parent.frameGeometry().height()
-            cp = parent.mapToGlobal(QPoint(wp/2, hp/2))
-        else:
-            cp = QDesktopWidget().availableGeometry().center()
-
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
-
     def closeEvent(self, event):
         # Proximity Filter Options.
         CONF.set('download_data', 'proximity_filter',
