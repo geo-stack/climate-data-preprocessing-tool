@@ -15,7 +15,7 @@ import platform
 
 # ---- Third parties imports
 from appconfigs.base import get_home_dir
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QPoint
 from qtpy.QtWidgets import (
     QApplication, QMainWindow, QToolBar, QToolButton, QLineEdit, QGridLayout,
     QLabel, QWidget, QFileDialog)
@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
                 myappid)
 
-        self.data_downloader = WeatherStationDownloader(self)
+        self.data_downloader = None
 
         # Setup the toolbar.
         self.show_data_downloader_btn = QToolButton()
@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         self.show_data_downloader_btn.setAutoRaise(True)
         self.show_data_downloader_btn.setToolTip("Download Data")
         self.show_data_downloader_btn.clicked.connect(
-            self.data_downloader.show)
+            self.show_data_downloader)
 
         toolbar = QToolBar('Main')
         toolbar.setFloatable(False)
@@ -102,7 +102,8 @@ class MainWindow(QMainWindow):
             self._workdir = workdir
             CONF.set('main', 'working_dir', workdir)
             self.workdir_ledit.setText(workdir)
-            self.data_downloader.workdir = workdir
+            if self.data_downloader is not None:
+                self.data_downloader.workdir = workdir
             self.gapfiller.set_workdir(workdir)
         else:
             self.set_workdir(get_home_dir())
@@ -117,6 +118,24 @@ class MainWindow(QMainWindow):
         if dirname:
             set_select_file_dialog_dir(dirname)
             self.set_workdir(dirname)
+
+    def show_data_downloader(self):
+        """
+        Show the download data dialog.
+        """
+        if self.data_downloader is None:
+            self.data_downloader = WeatherStationDownloader(self)
+            self.data_downloader.workdir = self._workdir
+            self.data_downloader.show()
+            qr = self.data_downloader.frameGeometry()
+            wp = self.frameGeometry().width()
+            hp = self.frameGeometry().height()
+            cp = self.mapToGlobal(QPoint(wp/2, hp/2))
+            qr.moveCenter(cp)
+            self.data_downloader.move(qr.topLeft())
+        self.data_downloader.show()
+        self.data_downloader.activateWindow()
+        self.data_downloader.raise_()
 
     # ---- Main window settings
     def _restore_window_geometry(self):
@@ -164,6 +183,8 @@ class MainWindow(QMainWindow):
         self._save_window_geometry()
         self._save_window_state()
         self.gapfiller.close()
+        if self.data_downloader is not None:
+            self.data_downloader.close()
         event.accept()
 
 
