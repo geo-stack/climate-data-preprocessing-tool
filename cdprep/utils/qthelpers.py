@@ -9,9 +9,13 @@
 
 """Qt utilities"""
 
+# ---- Standard imports
+from datetime import datetime
+
 # ---- Third party imports
 from PyQt5.QtCore import QByteArray, Qt
 from PyQt5.QtWidgets import QWidget, QSizePolicy, QFrame
+from xlrd.xldate import xldate_from_date_tuple
 
 
 def create_separator(orientation):
@@ -21,6 +25,28 @@ def create_separator(orientation):
     else:
         frame.setFrameStyle(52)
     return frame
+
+
+def xlsdate_from_qdatedit(qdatedit):
+    """
+    Return the Excel date corresponding to the value of the provided
+    Qt date edit widget.
+    """
+    y = qdatedit.date().year()
+    m = qdatedit.date().month()
+    d = qdatedit.date().day()
+    return xldate_from_date_tuple((y, m, d), 0)
+
+
+def datetime_from_qdatedit(qdatedit):
+    """
+    Return the Python datetime object corresponding to the value of
+    the provided Qt date edit widget.
+    """
+    return datetime(
+        qdatedit.date().year(),
+        qdatedit.date().month(),
+        qdatedit.date().day())
 
 
 def qbytearray_to_hexstate(qba):

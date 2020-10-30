@@ -26,14 +26,32 @@ LOCAL_ICONS = {
     'master': 'cdprep'}
 
 FA_ICONS = {
+    'chevron_down': [
+        ('mdi.chevron-down',),
+        {'color': ICON_COLOR}],
+    'chevron_right': [
+        ('mdi.chevron-right',),
+        {'color': ICON_COLOR}],
     'download_data': [
         ('mdi.download',),
         {'color': ICON_COLOR}],
+    'delete_data': [
+        ('mdi.delete-outline',),
+        {'color': ICON_COLOR, 'scale_factor': 1.4}],
+    'folder_open': [
+        ('mdi.folder-open-outline',),
+        {'color': ICON_COLOR, 'scale_factor': 1.3}],
+    'merge_data': [
+        ('mdi.table-merge-cells',),
+        {'color': ICON_COLOR, 'scale_factor': 1.4}],
     'refresh': [
         ('mdi.refresh',),
         {'color': ICON_COLOR}],
     'save': [
         ('fa.save',),
+        {'color': ICON_COLOR}],
+    'search_weather_data': [
+        ('mdi.cloud-search-outline',),
         {'color': ICON_COLOR}],
     'stop': [
         ('mdi.stop-circle-outline',),
