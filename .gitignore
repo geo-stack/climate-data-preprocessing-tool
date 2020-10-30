@@ -10,6 +10,12 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+releases/Output
+releases/build
+releases/*.zip
+releases/*.sig
+releases/*.iss
+releases/*win_amd64
 .Python
 build/
 develop-eggs/
