@@ -1,0 +1,56 @@
+# Python package
+# Create and test a Python package on multiple Python versions.
+# Add steps that analyze code, save the dist with the build record,
+# publish to a PyPI-compatible index, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+
+trigger:
+- master
+
+variables:
+  AZURE: True
+  CODECOV_TOKEN: "e1a9c98d-d8db-471d-a31d-af2a535323cd"
+  SARDES_OUTPUT_DIRNAME: 'sardes_0.9.3.dev0_win_amd64'
+
+pool:
+  vmImage: 'windows-2019'
+
+strategy:
+  matrix:
+    Python37:
+      python.version: '3.7'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(python.version)'
+  displayName: 'Use Python $(python.version)'
+
+- script: |
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+    pip install -r requirements-dev.txt
+    pip install pytest-azurepipelines
+  displayName: 'Install dependencies'
+
+- script: |
+    python runtests.py
+  displayName: 'Run tests'
+  continueOnError: false
+
+- script: |
+    codecov
+  displayName: 'Run codecov'
+
+- script: |
+    python -m pip install pyinstaller==3.6 pywin32 tornado
+    set PYTHONPATH=$(Build.SourcesDirectory);%PYTHONPATH%
+    cd ./releases
+    pyinstaller.exe sardes.spec
+    cd ..
+  displayName: 'Build package'
+
+- task: PublishPipelineArtifact@0
+  inputs:
+    artifactName: '$(SARDES_OUTPUT_DIRNAME)'
+    targetPath: '$(Build.SourcesDirectory)/releases/$(SARDES_OUTPUT_DIRNAME)'
