@@ -267,17 +267,17 @@ class WeatherStationDownloader(QWidget):
         self.btn_addSta.hide()
 
         btn_save = QPushButton('Save')
-        btn_save.setIcon(get_icon('save'))
         btn_save.setToolTip('Save the list of selected stations to a file.')
         btn_save.clicked.connect(self.btn_save_isClicked)
         btn_save.hide()
 
         self.btn_download = QPushButton('Download')
-        self.btn_download.setIcon(get_icon('download_data'))
         self.btn_download.clicked.connect(self.start_download_process)
 
+        btn_close = QPushButton('Close')
+        btn_close.clicked.connect(self.close)
+
         self.btn_fetch = btn_fetch = QPushButton('Refresh')
-        btn_fetch.setIcon(get_icon('refresh'))
         btn_fetch.setToolTip(
             "Update the list of climate stations by fetching it again from "
             "the ECCC ftp server.")
@@ -289,8 +289,9 @@ class WeatherStationDownloader(QWidget):
         toolbar_grid.addWidget(btn_save, 1, 2)
         toolbar_grid.addWidget(btn_fetch, 1, 3)
         toolbar_grid.addWidget(self.btn_download, 1, 4)
+        toolbar_grid.addWidget(btn_close, 1, 5)
         toolbar_grid.setColumnStretch(0, 100)
-        toolbar_grid.setContentsMargins(0, 30, 0, 0)
+        toolbar_grid.setContentsMargins(0, 10, 0, 0)
 
         # Setup the left panel.
         left_panel = QFrame()

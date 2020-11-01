@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
         Show the download data dialog.
         """
         if self.data_downloader is None:
-            self.data_downloader = WeatherStationDownloader(self)
+            self.data_downloader = WeatherStationDownloader()
             self.data_downloader.workdir = self._workdir
             self.data_downloader.show()
             qr = self.data_downloader.frameGeometry()
