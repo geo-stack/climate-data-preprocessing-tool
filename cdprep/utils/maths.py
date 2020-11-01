@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-
-# Copyright © 2014-2018 GWHAT Project Contributors
-# https://github.com/jnsebgosselin/gwhat
+# -----------------------------------------------------------------------------
+# Copyright © Climate Data Preprocessing Tool Project Contributors
+# https://github.com/cgq-qgc/climate-data-preprocessing-tool
 #
-# This file is part of GWHAT (Ground-Water Hydrograph Analysis Toolbox).
+# This file is part of Climate Data Preprocessing Tool.
 # Licensed under the terms of the GNU General Public License.
+# -----------------------------------------------------------------------------
 
 
 # ---- Standard lirary imports

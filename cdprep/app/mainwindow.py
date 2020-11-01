@@ -7,15 +7,21 @@
 # Licensed under the terms of the GNU General Public License.
 # -----------------------------------------------------------------------------
 
-# ---- Standard imports
+from cdprep import __appname__
+print('Starting {}...'.format(__appname__))
+
+# ---- Setup the main Qt application.
 import sys
-import os
+from qtpy.QtWidgets import QApplication
+app = QApplication(sys.argv)
+
+# ---- Standard imports
 import os.path as osp
 import platform
 
 # ---- Third parties imports
 from appconfigs.base import get_home_dir
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QPoint
 from qtpy.QtWidgets import (
     QApplication, QMainWindow, QToolBar, QToolButton, QLineEdit, QGridLayout,
     QLabel, QWidget, QFileDialog)
@@ -28,8 +34,7 @@ from cdprep.dwnld_data.dwnld_data_manager import WeatherStationDownloader
 from cdprep.gapfill_data.gapfill_weather_gui import WeatherDataGapfiller
 from cdprep.utils.qthelpers import (
     create_toolbar_stretcher, qbytearray_to_hexstate, hexstate_to_qbytearray)
-from cdprep.config.ospath import (
-    get_select_file_dialog_dir, set_select_file_dialog_dir)
+from cdprep.config.ospath import set_select_file_dialog_dir
 
 
 class MainWindow(QMainWindow):
@@ -49,7 +54,7 @@ class MainWindow(QMainWindow):
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
                 myappid)
 
-        self.data_downloader = WeatherStationDownloader(self)
+        self.data_downloader = None
 
         # Setup the toolbar.
         self.show_data_downloader_btn = QToolButton()
@@ -57,9 +62,10 @@ class MainWindow(QMainWindow):
         self.show_data_downloader_btn.setAutoRaise(True)
         self.show_data_downloader_btn.setToolTip("Download Data")
         self.show_data_downloader_btn.clicked.connect(
-            self.data_downloader.show)
+            self.show_data_downloader)
 
         toolbar = QToolBar('Main')
+        toolbar.setObjectName('main_toolbar')
         toolbar.setFloatable(False)
         toolbar.setMovable(False)
         toolbar.setIconSize(get_iconsize('normal'))
@@ -102,7 +108,8 @@ class MainWindow(QMainWindow):
             self._workdir = workdir
             CONF.set('main', 'working_dir', workdir)
             self.workdir_ledit.setText(workdir)
-            self.data_downloader.workdir = workdir
+            if self.data_downloader is not None:
+                self.data_downloader.workdir = workdir
             self.gapfiller.set_workdir(workdir)
         else:
             self.set_workdir(get_home_dir())
@@ -118,6 +125,24 @@ class MainWindow(QMainWindow):
             set_select_file_dialog_dir(dirname)
             self.set_workdir(dirname)
 
+    def show_data_downloader(self):
+        """
+        Show the download data dialog.
+        """
+        if self.data_downloader is None:
+            self.data_downloader = WeatherStationDownloader(self)
+            self.data_downloader.workdir = self._workdir
+            self.data_downloader.show()
+            qr = self.data_downloader.frameGeometry()
+            wp = self.frameGeometry().width()
+            hp = self.frameGeometry().height()
+            cp = self.mapToGlobal(QPoint(wp/2, hp/2))
+            qr.moveCenter(cp)
+            self.data_downloader.move(qr.topLeft())
+        self.data_downloader.show()
+        self.data_downloader.activateWindow()
+        self.data_downloader.raise_()
+
     # ---- Main window settings
     def _restore_window_geometry(self):
         """
@@ -129,7 +154,7 @@ class MainWindow(QMainWindow):
             hexstate = hexstate_to_qbytearray(hexstate)
             self.restoreGeometry(hexstate)
         else:
-            from gwhat.config.gui import INIT_MAINWINDOW_SIZE
+            from cdprep.config.gui import INIT_MAINWINDOW_SIZE
             self.resize(*INIT_MAINWINDOW_SIZE)
 
     def _save_window_geometry(self):
@@ -164,11 +189,29 @@ class MainWindow(QMainWindow):
         self._save_window_geometry()
         self._save_window_state()
         self.gapfiller.close()
+        if self.data_downloader is not None:
+            self.data_downloader.close()
         event.accept()
 
 
+def except_hook(cls, exception, traceback):
+    """
+    Used to override the default sys except hook so that this application
+    doesn't automatically exit when an unhandled exception occurs.
+
+    See this StackOverflow answer for more details :
+    https://stackoverflow.com/a/33741755/4481445
+    """
+    sys.__excepthook__(cls, exception, traceback)
+
+
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    mainwindow = MainWindow()
-    mainwindow.show()
+    sys.excepthook = except_hook
+    main = MainWindow()
+
+    if platform.system() == 'Windows':
+        from PyQt5.QtWidgets import QStyleFactory
+        app.setStyle(QStyleFactory.create('WindowsVista'))
+
+    main.show()
     sys.exit(app.exec_())

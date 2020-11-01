@@ -436,42 +436,6 @@ class WeatherStationDownloader(QWidget):
             self.waitspinnerbar.hide()
 
     # ---- GUI handlers
-    def show(self):
-        super().show()
-        qr = self.frameGeometry()
-        if self.parent():
-            parent = self.parent()
-            wp = parent.frameGeometry().width()
-            hp = parent.frameGeometry().height()
-            cp = parent.mapToGlobal(QPoint(wp/2, hp/2))
-        else:
-            cp = QDesktopWidget().availableGeometry().center()
-
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
-
-    def closeEvent(self, event):
-        # Proximity Filter Options.
-        CONF.set('download_data', 'proximity_filter',
-                 self.prox_grpbox.isChecked())
-        CONF.set('download_data', 'latitude', self.lat)
-        CONF.set('download_data', 'longitude', self.lon)
-        CONF.set('download_data', 'radius_index',
-                 self.radius_SpinBox.currentIndex())
-        CONF.set('download_data', 'province_index',
-                 self.prov_widg.currentIndex())
-
-        # Data Availability Filter Options.
-        CONF.set('download_data', 'data_availability_filter',
-                 self.year_widg.isChecked())
-        CONF.set('download_data', 'min_nbr_of_years',
-                 self.nbrYear.value())
-        CONF.set('download_data', 'year_range_left_bound',
-                 self.minYear.value())
-        CONF.set('download_data', 'year_range_right_bound',
-                 self.maxYear.value())
-        event.accept()
-
     def minYear_changed(self):
         min_yr = min_yr = max(self.minYear.value(), 1840)
 
@@ -657,6 +621,29 @@ class WeatherStationDownloader(QWidget):
                 writer = csv.writer(f, delimiter=',', lineterminator='\n')
                 writer.writerows(fcontent)
         self.download_next_station()
+
+    # ---- Qt overrides
+    def closeEvent(self, event):
+        # Proximity Filter Options.
+        CONF.set('download_data', 'proximity_filter',
+                 self.prox_grpbox.isChecked())
+        CONF.set('download_data', 'latitude', self.lat)
+        CONF.set('download_data', 'longitude', self.lon)
+        CONF.set('download_data', 'radius_index',
+                 self.radius_SpinBox.currentIndex())
+        CONF.set('download_data', 'province_index',
+                 self.prov_widg.currentIndex())
+
+        # Data Availability Filter Options.
+        CONF.set('download_data', 'data_availability_filter',
+                 self.year_widg.isChecked())
+        CONF.set('download_data', 'min_nbr_of_years',
+                 self.nbrYear.value())
+        CONF.set('download_data', 'year_range_left_bound',
+                 self.minYear.value())
+        CONF.set('download_data', 'year_range_right_bound',
+                 self.maxYear.value())
+        event.accept()
 
 
 class RawDataDownloader(QObject):

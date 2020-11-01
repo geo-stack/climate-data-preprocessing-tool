@@ -1,21 +1,22 @@
 # Python package
 # Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
+# Add steps that analyze code, save the dist with the build record,
+# publish to a PyPI-compatible index, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
 trigger:
 - master
 
+variables:
+  AZURE: True
+  CODECOV_TOKEN: "e1a9c98d-d8db-471d-a31d-af2a535323cd"
+  CDPREP_OUTPUT_DIRNAME: 'cdprep_0.1.0.dev0_win_amd64'
+
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'windows-2019'
+
 strategy:
   matrix:
-    Python27:
-      python.version: '2.7'
-    Python35:
-      python.version: '3.5'
-    Python36:
-      python.version: '3.6'
     Python37:
       python.version: '3.7'
 
@@ -28,9 +29,28 @@ steps:
 - script: |
     python -m pip install --upgrade pip
     pip install -r requirements.txt
+    pip install -r requirements-dev.txt
+    pip install pytest-azurepipelines
   displayName: 'Install dependencies'
 
 - script: |
-    pip install pytest pytest-azurepipelines
-    pytest
-  displayName: 'pytest'
+    python runtests.py
+  displayName: 'Run tests'
+  continueOnError: false
+
+- script: |
+    codecov
+  displayName: 'Run codecov'
+
+- script: |
+    python -m pip install pyinstaller==3.6 pywin32 tornado
+    set PYTHONPATH=$(Build.SourcesDirectory);%PYTHONPATH%
+    cd ./releases
+    pyinstaller.exe cdprep.spec
+    cd ..
+  displayName: 'Build package'
+
+- task: PublishPipelineArtifact@0
+  inputs:
+    artifactName: '$(CDPREP_OUTPUT_DIRNAME)'
+    targetPath: '$(Build.SourcesDirectory)/releases/$(CDPREP_OUTPUT_DIRNAME)'

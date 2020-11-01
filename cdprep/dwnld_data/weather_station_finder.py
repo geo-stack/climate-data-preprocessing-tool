@@ -72,8 +72,10 @@ class WeatherStationFinder(QObject):
         from ECCC Tor ftp server.
         """
         if osp.exists(DATABASE_FILEPATH):
-            self.sig_progress_msg.emit(
-                "Loading the climate station database from file.")
+            message = "Loading the climate station database from file."
+            print(message)
+            self.sig_progress_msg.emit(message)
+
             self._data = pd.read_csv(
                 DATABASE_FILEPATH, encoding='utf-8-sig', skiprows=2,
                 dtype={'DLY First Year': pd.Int64Dtype(),
@@ -99,11 +101,12 @@ class WeatherStationFinder(QObject):
         Fetch and read the list of climate stations with daily data
         from the ECCC Tor ftp server and save the result on disk.
         """
-        print("Fetching station list from ECCC Tor ftp server...")
+        message = "Fetching station list from ECCC Tor ftp server..."
+        print(message)
+        self.sig_progress_msg.emit(message)
+
         ts = time.time()
         self._data = None
-        self.sig_progress_msg.emit(
-            "Fetching the climate station database from the ECCC server...")
         for i in range(MAX_FAILED_FETCH_TRY):
             if fetch_stationlist_from_tor() is False:
                 print("Failed to fetch the database from "
@@ -117,9 +120,9 @@ class WeatherStationFinder(QObject):
                 self.load_database()
                 break
         else:
-            msg = "Failed to fetch the database from the ECCC server."
-            print(msg)
-            self.sig_progress_msg.emit(msg)
+            message = "Failed to fetch the database from the ECCC server."
+            print(message)
+            self.sig_progress_msg.emit(message)
             self.sig_load_database_finished.emit(False)
 
     def get_stationlist(self, prov=None, prox=None, yrange=None):

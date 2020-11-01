@@ -7,12 +7,25 @@
 # Licensed under the terms of the GNU General Public License.
 # -----------------------------------------------------------------------------
 
-ICON_COLOR = '#202020'
-GREEN = '#00aa00'
-RED = '#CC0000'
-YELLOW = '#ffa500'
-YELLOWLIGHT = '#fcf7b6'
-LIGHTGRAY = '#F0F0F0'
+"""
+File for running tests programmatically.
+"""
 
-INIT_MAINWINDOW_SIZE = (1028, 740)
-FRAME_SYLE = 22
+import os
+os.environ['CDPREP_PYTEST'] = 'True'
+
+import pytest
+
+
+def main():
+    """
+    Run pytest tests.
+    """
+    errno = pytest.main(['-x', 'cdprep', '-v', '-rw', '--durations=10',
+                         '--cov=cdprep', '-o', 'junit_family=xunit2'])
+    if errno != 0:
+        raise SystemExit(errno)
+
+
+if __name__ == '__main__':
+    main()

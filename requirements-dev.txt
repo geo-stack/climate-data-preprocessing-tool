@@ -1,7 +1,6 @@
--r requirements.txt
-pytest>=3.9
+flaky
+codecov
+pytest
 pytest-qt
 pytest-mock
 pytest-cov
-flaky
-codecov
