@@ -20,13 +20,10 @@ os.environ['CDPREP_PYTEST'] = 'True'
 from appconfigs.base import get_home_dir
 import pytest
 from qtpy.QtCore import QSize
-from qtpy.QtWidgets import QFileDialog, QMessageBox
 
 # ---- Local imports
-from cdprep import __rootdir__
 from cdprep.config.gui import INIT_MAINWINDOW_SIZE
 from cdprep.app.mainwindow import MainWindow, CONF
-from cdprep.dwnld_data.weather_station_finder import DATABASE_FILEPATH
 
 
 # =============================================================================
