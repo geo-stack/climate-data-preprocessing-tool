@@ -276,6 +276,9 @@ class WeatherStationDownloader(QWidget):
         self.btn_download.setIcon(get_icon('download_data'))
         self.btn_download.clicked.connect(self.start_download_process)
 
+        btn_close = QPushButton('Close')
+        btn_close.clicked.connect(self.close)
+
         self.btn_fetch = btn_fetch = QPushButton('Refresh')
         btn_fetch.setIcon(get_icon('refresh'))
         btn_fetch.setToolTip(
@@ -289,6 +292,7 @@ class WeatherStationDownloader(QWidget):
         toolbar_grid.addWidget(btn_save, 1, 2)
         toolbar_grid.addWidget(btn_fetch, 1, 3)
         toolbar_grid.addWidget(self.btn_download, 1, 4)
+        toolbar_grid.addWidget(btn_close, 1, 5)
         toolbar_grid.setColumnStretch(0, 100)
         toolbar_grid.setContentsMargins(0, 30, 0, 0)
 
