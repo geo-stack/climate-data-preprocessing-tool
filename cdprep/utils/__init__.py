@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright © Geolearn
-# https://github.com/GeolearnAI/gwire
+# Copyright © Climate Data Preprocessing Tool Project Contributors
+# https://github.com/cgq-qgc/climate-data-preprocessing-tool
 #
-# This file is part of Gwire.
-# Licensed under the terms and conditions defined in file 'LICENSE.txt',
-# which is distributed along with this program.
+# This file is part of Climate Data Preprocessing Tool.
+# Licensed under the terms of the GNU General Public License.
 # -----------------------------------------------------------------------------
