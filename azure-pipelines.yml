@@ -46,7 +46,7 @@ steps:
     python -m pip install pyinstaller==3.6 pywin32 tornado
     set PYTHONPATH=$(Build.SourcesDirectory);%PYTHONPATH%
     cd ./releases
-    pyinstaller.exe sardes.spec
+    pyinstaller.exe cdprep.spec
     cd ..
   displayName: 'Build package'
 
