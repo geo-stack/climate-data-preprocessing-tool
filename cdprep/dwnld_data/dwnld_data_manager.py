@@ -291,7 +291,7 @@ class WeatherStationDownloader(QWidget):
         toolbar_grid.addWidget(self.btn_download, 1, 4)
         toolbar_grid.addWidget(btn_close, 1, 5)
         toolbar_grid.setColumnStretch(0, 100)
-        toolbar_grid.setContentsMargins(0, 30, 0, 0)
+        toolbar_grid.setContentsMargins(0, 10, 0, 0)
 
         # Setup the left panel.
         left_panel = QFrame()
