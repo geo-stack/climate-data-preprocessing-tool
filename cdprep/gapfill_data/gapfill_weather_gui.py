@@ -25,7 +25,6 @@ from PyQt5.QtWidgets import (
 from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
 from cdprep.gapfill_data.gapfill_weather_algorithm import DataGapfiller
-from cdprep.gapfill_data.merge_weather_data import WXDataMergerWidget
 from cdprep.utils.ospath import delete_file
 from cdprep.utils.qthelpers import datetime_from_qdatedit
 
@@ -42,7 +41,6 @@ class WeatherDataGapfiller(QWidget):
         # Correlation calculation won't be triggered by events when
         # CORRFLAG is 'off'
         self.CORRFLAG = 'on'
-        self.wxdata_merger = WXDataMergerWidget()
 
         self.__initUI__()
 
@@ -95,13 +93,6 @@ class WeatherDataGapfiller(QWidget):
         self.btn_refresh_staList.setAutoRaise(True)
         self.btn_refresh_staList.clicked.connect(self.btn_refresh_isclicked)
 
-        btn_merge_data = QToolButton()
-        btn_merge_data.setIcon(get_icon('merge_data'))
-        btn_merge_data.setToolTip(
-            'Tool for merging two ore more datasets together.')
-        btn_merge_data.setAutoRaise(True)
-        btn_merge_data.clicked.connect(self.wxdata_merger.show)
-
         self.btn_delete_data = QToolButton()
         self.btn_delete_data.setIcon(get_icon('delete_data'))
         self.btn_delete_data.setEnabled(False)
@@ -119,7 +110,7 @@ class WeatherDataGapfiller(QWidget):
         target_station_layout.setContentsMargins(0, 0, 0, 0)
 
         widgets = [self.target_station, self.btn_refresh_staList,
-                   btn_merge_data, self.btn_delete_data]
+                   self.btn_delete_data]
         target_station_layout.addWidget(self.target_station, 1, 0)
         for col, widget in enumerate(widgets):
             target_station_layout.addWidget(widget, 1, col)
@@ -296,7 +287,6 @@ class WeatherDataGapfiller(QWidget):
         """
         self.__workdir = dirname
         self.gapfill_worker.inputDir = dirname
-        self.wxdata_merger.set_workdir(os.path.join(dirname, 'Meteo', 'Input'))
         self.load_data_dir_content()
 
     def delete_current_dataset(self):
