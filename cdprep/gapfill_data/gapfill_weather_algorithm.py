@@ -206,12 +206,12 @@ class DataGapfiller(QObject):
                 gapfill_date_range, neighbors].notnull()
             notnull_groups = notnull.groupby(by=neighbors, axis=0)
             for group in notnull_groups:
-                if len(group[1].columns) == 0:
+                group_dates = group[1].index
+                group_neighbors = group[1].columns[list(group[0])]
+                if len(group_neighbors) == 0:
                     # It is impossible to fill the data in this group
                     # because all neighboring stations are empty.
                     continue
-                group_dates = group[1].index
-                group_neighbors = group[1].columns[list(group[0])]
 
                 # Determines the neighboring stations to include in the
                 # regression model.
