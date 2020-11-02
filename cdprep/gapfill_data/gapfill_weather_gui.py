@@ -409,8 +409,8 @@ class WeatherDataGapfiller(QWidget):
 
         self.target_widget.setEnabled(True)
         self.fillDates_widg.setEnabled(True)
-        self._regression_model_groupbox.setEnabled(False)
-        self._station_selection_groupbox.setEnabled(False)
+        self._regression_model_groupbox.setEnabled(True)
+        self._station_selection_groupbox.setEnabled(True)
         self.progressbar.setValue(0)
         QApplication.processEvents()
         self.progressbar.hide()
