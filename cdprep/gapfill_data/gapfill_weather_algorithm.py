@@ -376,7 +376,10 @@ class DataGapfiller(QObject):
         return gapfilled_data
 
     def build_mlr_model(self, X, Y):
-
+        """
+        Build a multiple linear model using the provided independent (X) and
+        dependent (y) variable data.
+        """
         if self.regression_mode == 1:  # Ordinary Least Square regression
 
             # http://statsmodels.sourceforge.net/devel/generated/
@@ -388,7 +391,6 @@ class DataGapfiller(QObject):
 
             # Using Numpy function:
             A = np.linalg.lstsq(X, Y, rcond=None)[0]
-
         else:  # Least Absolute Deviations regression
 
             # http://statsmodels.sourceforge.net/devel/generated/
