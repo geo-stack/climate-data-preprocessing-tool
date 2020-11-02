@@ -147,13 +147,16 @@ class WeatherDataGapfiller(QWidget):
         target_layout.addWidget(self.fillDates_widg, 2, 0)
 
         # Setup the left panel.
+        self._regression_model_groupbox = (
+            self._create_regression_model_settings())
+        self._station_selection_groupbox = (
+            self._create_station_selection_criteria())
+
         self.left_panel = QFrame()
         left_panel_layout = QGridLayout(self.left_panel)
         left_panel_layout.addWidget(target_groupbox, 0, 0)
-        left_panel_layout.addWidget(
-            self._create_station_selection_criteria(), 3, 0)
-        left_panel_layout.addWidget(
-            self._create_regression_model_settings(), 4, 0)
+        left_panel_layout.addWidget(self._station_selection_groupbox, 3, 0)
+        left_panel_layout.addWidget(self._regression_model_groupbox, 4, 0)
         left_panel_layout.addWidget(widget_toolbar, 5, 0)
         left_panel_layout.setRowStretch(6, 1)
         left_panel_layout.setContentsMargins(0, 0, 0, 0)
@@ -406,8 +409,8 @@ class WeatherDataGapfiller(QWidget):
 
         self.target_widget.setEnabled(True)
         self.fillDates_widg.setEnabled(True)
-        self.stack_widget.setEnabled(True)
-
+        self._regression_model_groupbox.setEnabled(False)
+        self._station_selection_groupbox.setEnabled(False)
         self.progressbar.setValue(0)
         QApplication.processEvents()
         self.progressbar.hide()
@@ -462,7 +465,8 @@ class WeatherDataGapfiller(QWidget):
         self.btn_fill.setEnabled(False)
         self.fillDates_widg.setEnabled(False)
         self.target_widget.setEnabled(False)
-        self.stack_widget.setEnabled(False)
+        self._regression_model_groupbox.setEnabled(False)
+        self._station_selection_groupbox.setEnabled(False)
         self.progressbar.show()
 
         self.isFillAll_inProgress = False
