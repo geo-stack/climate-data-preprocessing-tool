@@ -519,7 +519,7 @@ class WeatherStationDownloader(QWidget):
 
         # Update the UI.
         self.progressbar.show()
-        self.btn_download.setIcon(get_icon('stop'))
+        self.btn_download.setText("Cancel")
         self.left_panel.setEnabled(False)
         self.station_table.setEnabled(False)
 
@@ -531,11 +531,12 @@ class WeatherStationDownloader(QWidget):
         self.download_next_station()
 
     def stop_download_process(self):
+        """Stop the downloading process."""
         print('Stopping the download process...')
-        self.btn_download.setIcon(get_icon('download'))
         self.dwnld_worker.stop_download()
         self.wait_for_thread_to_quit()
         self.btn_download.setEnabled(True)
+        self.btn_download.setText("Download")
         self.left_panel.setEnabled(True)
         self.station_table.setEnabled(True)
         self._dwnld_inprogress = False
@@ -549,6 +550,7 @@ class WeatherStationDownloader(QWidget):
         except IndexError:
             # There is no more data to download.
             print('Raw weather data downloaded for all selected stations.')
+            self.btn_download.setText("Download")
             self.progressbar.hide()
             self.left_panel.setEnabled(True)
             self.station_table.setEnabled(True)
