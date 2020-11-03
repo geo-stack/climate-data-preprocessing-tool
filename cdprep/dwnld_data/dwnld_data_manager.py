@@ -114,6 +114,7 @@ class WeatherStationDownloader(QWidget):
         self.__initUI__()
 
         # Setup the raw data downloader.
+        self._dwnld_inprogress = False
         self._dwnld_stations_list = []
         self.dwnld_thread = QThread()
         self.dwnld_worker = RawDataDownloader()
@@ -524,6 +525,7 @@ class WeatherStationDownloader(QWidget):
         self.dwnld_worker.dirname = self.workdir
 
         # Start downloading data.
+        self._dwnld_inprogress = True
         self.download_next_station()
 
     def stop_download_process(self):
@@ -532,6 +534,7 @@ class WeatherStationDownloader(QWidget):
         self.dwnld_worker.stop_download()
         self.wait_for_thread_to_quit()
         self.btn_download.setEnabled(True)
+        self._dwnld_inprogress = False
         self.sig_download_process_ended.emit()
         print('Download process stopped.')
 
@@ -543,6 +546,7 @@ class WeatherStationDownloader(QWidget):
             # There is no more data to download.
             print('Raw weather data downloaded for all selected stations.')
             self.progressbar.hide()
+            self._dwnld_inprogress = False
             self.sig_download_process_ended.emit()
             return
 
