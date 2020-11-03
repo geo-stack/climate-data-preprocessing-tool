@@ -35,6 +35,7 @@ class WeatherDataGapfiller(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._workdir = None
 
         self.isFillAll_inProgress = False
 
@@ -282,13 +283,13 @@ class WeatherDataGapfiller(QWidget):
 
     @property
     def workdir(self):
-        return self.__workdir
+        return self._workdir
 
     def set_workdir(self, dirname):
         """
         Set the working directory to dirname.
         """
-        self.__workdir = dirname
+        self._workdir = dirname
         self.gapfill_worker.inputDir = dirname
         self.load_data_dir_content()
 
