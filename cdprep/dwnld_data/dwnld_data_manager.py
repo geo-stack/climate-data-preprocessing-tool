@@ -522,6 +522,7 @@ class WeatherStationDownloader(QWidget):
         self.btn_download.setText("Cancel")
         self.left_panel.setEnabled(False)
         self.station_table.setEnabled(False)
+        self.btn_fetch.setEnabled(False)
 
         # Set thread working directory.
         self.dwnld_worker.dirname = self.workdir
@@ -539,6 +540,8 @@ class WeatherStationDownloader(QWidget):
         self.btn_download.setText("Download")
         self.left_panel.setEnabled(True)
         self.station_table.setEnabled(True)
+        self.btn_fetch.setEnabled(True)
+
         self._dwnld_inprogress = False
         self.sig_download_process_ended.emit()
         print('Download process stopped.')
@@ -554,6 +557,7 @@ class WeatherStationDownloader(QWidget):
             self.progressbar.hide()
             self.left_panel.setEnabled(True)
             self.station_table.setEnabled(True)
+            self.btn_fetch.setEnabled(True)
             self._dwnld_inprogress = False
             self.sig_download_process_ended.emit()
             return
