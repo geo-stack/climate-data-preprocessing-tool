@@ -723,12 +723,12 @@ class WeatherData(object):
         paths: list
             A list of absolute paths containing daily weater data files
         """
-        if len(paths) == 0:
-            return False
-
         self.fnames = [osp.basename(path) for path in paths]
         self.data = {var: pd.DataFrame([]) for var in VARNAMES}
         self.metadata = pd.DataFrame([])
+        if len(paths) == 0:
+            return
+
         for i, path in enumerate(paths):
             try:
                 sta_metadata, sta_data = read_weather_datafile(path)
@@ -765,8 +765,6 @@ class WeatherData(object):
 
         # Set the index of the metadata.
         self.metadata = self.metadata.set_index('Station ID', drop=True)
-
-        return True
 
     # ---- Utilities
     def alt_and_dist_calc(self, target_station_id):
