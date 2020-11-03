@@ -114,6 +114,7 @@ class WeatherStationDownloader(QWidget):
         self.__initUI__()
 
         # Setup the raw data downloader.
+        self._dwnld_inprogress = False
         self._dwnld_stations_list = []
         self.dwnld_thread = QThread()
         self.dwnld_worker = RawDataDownloader()
@@ -294,8 +295,8 @@ class WeatherStationDownloader(QWidget):
         toolbar_grid.setContentsMargins(0, 10, 0, 0)
 
         # Setup the left panel.
-        left_panel = QFrame()
-        left_panel_grid = QGridLayout(left_panel)
+        self.left_panel = QFrame()
+        left_panel_grid = QGridLayout(self.left_panel)
         left_panel_grid.setContentsMargins(0, 0, 0, 0)
         left_panel_grid.addWidget(
             QLabel('Search Criteria'), 0, 0)
@@ -311,7 +312,7 @@ class WeatherStationDownloader(QWidget):
 
         # Create the main grid.
         main_layout = QGridLayout(self)
-        main_layout.addWidget(left_panel, 0, 0)
+        main_layout.addWidget(self.left_panel, 0, 0)
         main_layout.addWidget(self.station_table, 0, 1)
         main_layout.addWidget(self.waitspinnerbar, 0, 1)
         main_layout.addWidget(toolbar_widg, 1, 0, 1, 2)
@@ -506,6 +507,10 @@ class WeatherStationDownloader(QWidget):
     # ---- Download weather data
     def start_download_process(self):
         """Start the downloading process of raw weather data files."""
+        if self._dwnld_inprogress is True:
+            self.stop_download_process()
+            return
+
         # Grab the info of the weather stations that are selected.
         rows = self.station_table.get_checked_rows()
         self._dwnld_stations_list = self.station_table.get_content4rows(rows)
@@ -518,20 +523,33 @@ class WeatherStationDownloader(QWidget):
 
         # Update the UI.
         self.progressbar.show()
-        self.btn_download.setIcon(get_icon('stop'))
+        self.btn_download.setText("Cancel")
+        self.left_panel.setEnabled(False)
+        self.station_table.setEnabled(False)
+        self.btn_fetch.setEnabled(False)
 
         # Set thread working directory.
         self.dwnld_worker.dirname = self.workdir
 
         # Start downloading data.
+        self._dwnld_inprogress = True
         self.download_next_station()
 
     def stop_download_process(self):
+        """Stop the downloading process."""
         print('Stopping the download process...')
-        self.btn_download.setIcon(get_icon('download'))
         self.dwnld_worker.stop_download()
+        self._dwnld_stations_list = []
+        self.btn_download.setEnabled(False)
+
         self.wait_for_thread_to_quit()
         self.btn_download.setEnabled(True)
+        self.btn_download.setText("Download")
+        self.left_panel.setEnabled(True)
+        self.station_table.setEnabled(True)
+        self.btn_fetch.setEnabled(True)
+
+        self._dwnld_inprogress = False
         self.sig_download_process_ended.emit()
         print('Download process stopped.')
 
@@ -542,8 +560,12 @@ class WeatherStationDownloader(QWidget):
         except IndexError:
             # There is no more data to download.
             print('Raw weather data downloaded for all selected stations.')
-            self.btn_download.setIcon(get_icon('download'))
+            self.btn_download.setText("Download")
             self.progressbar.hide()
+            self.left_panel.setEnabled(True)
+            self.station_table.setEnabled(True)
+            self.btn_fetch.setEnabled(True)
+            self._dwnld_inprogress = False
             self.sig_download_process_ended.emit()
             return
 
@@ -713,7 +735,8 @@ class RawDataDownloader(QObject):
             if self.__stop_dwnld:
                 # Stop the downloading process.
                 self.__stop_dwnld = False
-                print("Downloading process for station %s stopped." % StaName)
+                print("Downloading process for station {} stopped.".format(
+                    StaName))
                 return
 
             # Define file and URL paths.
@@ -767,11 +790,19 @@ class RawDataDownloader(QObject):
                          for station %s for year %d. Downloading is skipped.
                        </font>''' % (StaName, year))
                 downloaded_raw_datafiles.append(fname)
-        print("All raw data downloaded sucessfully for station %s." % StaName)
-        self.sig_update_pbar.emit(0)
-        self.sig_download_finished.emit(
-            self.climateID, downloaded_raw_datafiles)
-        return downloaded_raw_datafiles
+
+        if self.__stop_dwnld is False:
+            print("All raw data downloaded sucessfully for station {}.".format(
+                StaName))
+            self.sig_update_pbar.emit(0)
+            self.sig_download_finished.emit(
+                self.climateID, downloaded_raw_datafiles)
+            return downloaded_raw_datafiles
+        else:
+            # The downloading process was stopped by the user.
+            self.__stop_dwnld = False
+            print("Downloading process for station {} stopped.".format(
+                StaName))
 
     def download_file(self, url, fname):
         """Download the single csv weather data file at the specified url."""
