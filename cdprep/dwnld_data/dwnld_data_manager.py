@@ -295,8 +295,8 @@ class WeatherStationDownloader(QWidget):
         toolbar_grid.setContentsMargins(0, 10, 0, 0)
 
         # Setup the left panel.
-        left_panel = QFrame()
-        left_panel_grid = QGridLayout(left_panel)
+        self.left_panel = QFrame()
+        left_panel_grid = QGridLayout(self.left_panel)
         left_panel_grid.setContentsMargins(0, 0, 0, 0)
         left_panel_grid.addWidget(
             QLabel('Search Criteria'), 0, 0)
@@ -312,7 +312,7 @@ class WeatherStationDownloader(QWidget):
 
         # Create the main grid.
         main_layout = QGridLayout(self)
-        main_layout.addWidget(left_panel, 0, 0)
+        main_layout.addWidget(self.left_panel, 0, 0)
         main_layout.addWidget(self.station_table, 0, 1)
         main_layout.addWidget(self.waitspinnerbar, 0, 1)
         main_layout.addWidget(toolbar_widg, 1, 0, 1, 2)
@@ -520,6 +520,7 @@ class WeatherStationDownloader(QWidget):
         # Update the UI.
         self.progressbar.show()
         self.btn_download.setIcon(get_icon('stop'))
+        self.left_panel.setEnabled(False)
 
         # Set thread working directory.
         self.dwnld_worker.dirname = self.workdir
@@ -534,6 +535,7 @@ class WeatherStationDownloader(QWidget):
         self.dwnld_worker.stop_download()
         self.wait_for_thread_to_quit()
         self.btn_download.setEnabled(True)
+        self.left_panel.setEnabled(True)
         self._dwnld_inprogress = False
         self.sig_download_process_ended.emit()
         print('Download process stopped.')
@@ -546,6 +548,7 @@ class WeatherStationDownloader(QWidget):
             # There is no more data to download.
             print('Raw weather data downloaded for all selected stations.')
             self.progressbar.hide()
+            self.left_panel.setEnabled(True)
             self._dwnld_inprogress = False
             self.sig_download_process_ended.emit()
             return
