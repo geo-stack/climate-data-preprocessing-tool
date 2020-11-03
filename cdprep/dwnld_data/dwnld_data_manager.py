@@ -716,7 +716,8 @@ class RawDataDownloader(QObject):
             if self.__stop_dwnld:
                 # Stop the downloading process.
                 self.__stop_dwnld = False
-                print("Downloading process for station %s stopped." % StaName)
+                print("Downloading process for station {} stopped.".format(
+                    StaName))
                 return
 
             # Define file and URL paths.
