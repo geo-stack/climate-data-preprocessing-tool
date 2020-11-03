@@ -542,7 +542,6 @@ class WeatherStationDownloader(QWidget):
         except IndexError:
             # There is no more data to download.
             print('Raw weather data downloaded for all selected stations.')
-            self.btn_download.setIcon(get_icon('download'))
             self.progressbar.hide()
             self.sig_download_process_ended.emit()
             return
