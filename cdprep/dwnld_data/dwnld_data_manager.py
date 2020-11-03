@@ -507,6 +507,10 @@ class WeatherStationDownloader(QWidget):
     # ---- Download weather data
     def start_download_process(self):
         """Start the downloading process of raw weather data files."""
+        if self._dwnld_inprogress is True:
+            self.stop_download_process()
+            return
+
         # Grab the info of the weather stations that are selected.
         rows = self.station_table.get_checked_rows()
         self._dwnld_stations_list = self.station_table.get_content4rows(rows)
@@ -535,6 +539,9 @@ class WeatherStationDownloader(QWidget):
         """Stop the downloading process."""
         print('Stopping the download process...')
         self.dwnld_worker.stop_download()
+        self._dwnld_stations_list = []
+        self.btn_download.setEnabled(False)
+
         self.wait_for_thread_to_quit()
         self.btn_download.setEnabled(True)
         self.btn_download.setText("Download")
@@ -783,11 +790,19 @@ class RawDataDownloader(QObject):
                          for station %s for year %d. Downloading is skipped.
                        </font>''' % (StaName, year))
                 downloaded_raw_datafiles.append(fname)
-        print("All raw data downloaded sucessfully for station %s." % StaName)
-        self.sig_update_pbar.emit(0)
-        self.sig_download_finished.emit(
-            self.climateID, downloaded_raw_datafiles)
-        return downloaded_raw_datafiles
+
+        if self.__stop_dwnld is False:
+            print("All raw data downloaded sucessfully for station {}.".format(
+                StaName))
+            self.sig_update_pbar.emit(0)
+            self.sig_download_finished.emit(
+                self.climateID, downloaded_raw_datafiles)
+            return downloaded_raw_datafiles
+        else:
+            # The downloading process was stopped by the user.
+            self.__stop_dwnld = False
+            print("Downloading process for station {} stopped.".format(
+                StaName))
 
     def download_file(self, url, fname):
         """Download the single csv weather data file at the specified url."""
