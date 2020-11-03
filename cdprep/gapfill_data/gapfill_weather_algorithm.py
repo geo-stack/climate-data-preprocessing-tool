@@ -694,16 +694,20 @@ class WeatherData(object):
         """
         Return the list of station names for which data are loaded in memory.
         """
-        return (self.metadata['Station Name'].tolist() if
-                self.metadata is not None else [])
+        if self.metadata is None or self.metadata.empty:
+            return []
+        else:
+            return self.metadata['Station Name'].tolist()
 
     @property
     def station_ids(self):
         """
         Return the list of station IDs for which data are loaded in memory.
         """
-        return (self.metadata.index.tolist() if
-                self.metadata is not None else [])
+        if self.metadata is None or self.metadata.empty:
+            return []
+        else:
+            return self.metadata.index.tolist()
 
     @property
     def datetimes(self):
