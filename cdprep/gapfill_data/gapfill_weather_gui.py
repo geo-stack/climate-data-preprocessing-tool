@@ -334,18 +334,6 @@ class WeatherDataGapfiller(QWidget):
         if index != -1:
             self.update_corrcoeff()
 
-    def get_gapfill_parameters(self):
-        """
-        Return a dictionary containing the parameters that are set in the GUI
-        for gapfilling weather data.
-        """
-        return {
-            'limitDist': self.distlimit.value(),
-            'limitAlt': self.altlimit.value(),
-            'date_start': self.date_start_widget.date().toString('dd/MM/yyyy'),
-            'date_end': self.date_end_widget.date().toString('dd/MM/yyyy')
-            }
-
     def get_dataset_names(self):
         """
         Return a list of the names of the dataset that are loaded in
@@ -418,6 +406,18 @@ class WeatherDataGapfiller(QWidget):
         self._handle_target_station_changed(self.target_station.currentIndex())
 
     # ---- Gapfill Data
+    def get_gapfill_parameters(self):
+        """
+        Return a dictionary containing the parameters that are set in the GUI
+        for gapfilling weather data.
+        """
+        return {
+            'limitDist': self.distlimit.value(),
+            'limitAlt': self.altlimit.value(),
+            'date_start': self.date_start_widget.date().toString('dd/MM/yyyy'),
+            'date_end': self.date_end_widget.date().toString('dd/MM/yyyy')
+            }
+
     def _handle_gapfill_btn_clicked(self):
         """
         Handle when the user clicked on the gapfill button.
