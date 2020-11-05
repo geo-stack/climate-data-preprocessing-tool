@@ -191,7 +191,7 @@ class DataGapfillWorker(WorkerBase):
     def read_summary(self):
         return self.WEATHER.read_summary(self.outputdir)
 
-    def get_valid_neighboring_stations(self):
+    def get_valid_neighboring_stations(self, hdist_limit, vdist_limit):
         """
         Return the list of neighboring stations that are within the
         horizontal and altitude range of the target station.
@@ -200,22 +200,28 @@ class DataGapfillWorker(WorkerBase):
         # to a negative number, all stations are kept regardless of their
         # distance or altitude difference with the target station.
         valid_stations = self.alt_and_dist.copy()
-        if self.limitDist > 0:
+        if hdist_limit > 0:
             valid_stations = valid_stations[
-                valid_stations['hordist'] <= self.limitDist]
-        if self.limitAlt > 0:
+                valid_stations['hordist'] <= hdist_limit]
+        if vdist_limit > 0:
             valid_stations = valid_stations[
-                valid_stations['altdiff'].abs() <= self.limitAlt]
+                valid_stations['altdiff'].abs() <= vdist_limit]
         valid_stations = valid_stations.index.values.tolist()
         valid_stations.remove(self.target)
         return valid_stations
 
-    def gapfill_data(self):
+    def gapfill_data(self, time_start, time_end, max_neighbors,
+                     hdist_limit, vdist_limit, regression_mode):
+        """
+        Gapfill the data of the target stations with the specified
+        parameters.
+        """
         tstart_total = process_time()
 
-        neighbors = self.get_valid_neighboring_stations()
+        neighbors = self.get_valid_neighboring_stations(
+            hdist_limit, vdist_limit)
         gapfill_date_range = pd.date_range(
-            start=self.time_start, end=self.time_end, freq='D')
+            start=time_start, end=time_end, freq='D')
         y2fill = pd.DataFrame(
             np.nan, index=gapfill_date_range, columns=VARNAMES)
         self.sig_gapfill_progress.emit(0)
@@ -241,7 +247,7 @@ class DataGapfillWorker(WorkerBase):
             notnull = self.wxdatasets.data[varname].loc[
                 gapfill_date_range, neighbors].notnull()
             notnull_groups = notnull.groupby(by=neighbors, axis=0)
-            for group in notnull_groups:
+            for j, group in enumerate(notnull_groups):
                 group_dates = group[1].index
                 group_neighbors = group[1].columns[list(group[0])]
                 if len(group_neighbors) == 0:
@@ -255,7 +261,7 @@ class DataGapfillWorker(WorkerBase):
                     self.corcoef.loc[group_neighbors]
                     .sort_values(varname, axis=0, ascending=False)
                     .index
-                    )[:self.NSTAmax]
+                    )[:max_neighbors]
 
                 neighbors_combi = ', '.join(model_neighbors)
                 if neighbors_combi in reg_models:
@@ -296,7 +302,7 @@ class DataGapfillWorker(WorkerBase):
                         X = np.hstack((np.ones((len(Y), 1)), X))
 
                     # Generate the MLR Model
-                    A = self.build_mlr_model(X, Y)
+                    A = self.build_mlr_model(X, Y, regression_mode)
 
                     # Calcul the RMSE.
 
@@ -411,12 +417,12 @@ class DataGapfillWorker(WorkerBase):
         self.sig_gapfill_finished.emit(True)
         return gapfilled_data
 
-    def build_mlr_model(self, X, Y):
+    def build_mlr_model(self, X, Y, regression_mode):
         """
         Build a multiple linear model using the provided independent (X) and
         dependent (y) variable data.
         """
-        if self.regression_mode == 1:  # Ordinary Least Square regression
+        if regression_mode == 1:  # Ordinary Least Square regression
 
             # http://statsmodels.sourceforge.net/devel/generated/
             # statsmodels.regression.linear_model.OLS.html
@@ -1050,27 +1056,22 @@ def L1LinearRegression(X, Y):
 
 
 if __name__ == '__main__':
-    gapfiller = DataGapfiller()
+    gapfiller = DataGapfillWorker()
 
     # Set the input and output directory.
-    gapfiller.inputDir = 'D:/gapfill_weather_data_test'
+    gapfiller.inputDir = 'D:/choix_stations_telemetrie/weather_data'
 
     # Load weather the data files and set the target station.
     station_names = gapfiller.load_data()
-    gapfiller.set_target_station('7024627')
-
-    # Define the plage over which data needs to be filled.
-    gapfiller.time_start = datetime.strptime('1980-01-01', '%Y-%m-%d')
-    gapfiller.time_end = datetime.strptime('2020-01-01', '%Y-%m-%d')
+    gapfiller.set_target_station('7050240')
 
     # Set the gapfill parameters.
-    gapfiller.NSTAmax = 3
-    gapfiller.limitDist = 100
-    gapfiller.limitAlt = 350
-    gapfiller.full_error_analysis = False
-    gapfiller.leave_one_out = False
-    gapfiller.regression_mode = 0
+    gapfilled_data = gapfiller.gapfill_data(
+        time_start=datetime.strptime('1980-01-01', '%Y-%m-%d'),
+        time_end=datetime.strptime('2020-01-01', '%Y-%m-%d'),
+        hdist_limit=350,
+        vdist_limit=100,
+        max_neighbors=3,
+        regression_mode=0)
     # 0 -> Least Absolute Deviation (LAD)
     # 1 -> Ordinary Least-Square (OLS)
-
-    gapfilled_data = gapfiller.gapfill_data()
