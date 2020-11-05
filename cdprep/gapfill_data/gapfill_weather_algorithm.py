@@ -38,14 +38,14 @@ VARNAMES = PRECIP_VARIABLES + TEMP_VARIABLES
 
 
 class DataGapfillManager(TaskManagerBase):
-    sig_gapfill_progress = QSignal(int)
+    sig_task_progress = QSignal(int)
     sig_status_message = QSignal(str)
 
     def __init__(self):
         super().__init__()
         worker = DataGapfillWorker()
         self.set_worker(worker)
-        worker.sig_gapfill_progress.connect(self.sig_gapfill_progress.emit)
+        worker.sig_task_progress.connect(self.sig_task_progress.emit)
         worker.sig_status_message.connect(self.sig_status_message.emit)
 
     def count(self):
@@ -122,7 +122,7 @@ class DataGapfillWorker(WorkerBase):
     regression_mode : int
     full_error_analysis : bool
     """
-    sig_gapfill_progress = QSignal(int)
+    sig_task_progress = QSignal(int)
     sig_status_message = QSignal(str)
     sig_console_message = QSignal(str)
     sig_gapfill_finished = QSignal(bool)
@@ -272,7 +272,7 @@ class DataGapfillWorker(WorkerBase):
             start=time_start, end=time_end, freq='D')
         y2fill = pd.DataFrame(
             np.nan, index=gapfill_date_range, columns=VARNAMES)
-        self.sig_gapfill_progress.emit(0)
+        self.sig_task_progress.emit(0)
         for i, varname in enumerate(VARNAMES):
             # When a station does not have enough data for a given variable,
             # its correlation coefficient is set to nan. If all the stations
@@ -385,10 +385,10 @@ class DataGapfillWorker(WorkerBase):
 
                 # Store the results.
                 y2fill.loc[group_dates, varname] = Y
-                self.sig_gapfill_progress.emit(int(
+                self.sig_task_progress.emit(int(
                     (j + 1) / len(notnull_groups) * 100 / len(VARNAMES) +
                     i / len(VARNAMES) * 100))
-            self.sig_gapfill_progress.emit(int((i + 1) / len(VARNAMES) * 100))
+            self.sig_task_progress.emit(int((i + 1) / len(VARNAMES) * 100))
             print('Data gapfilled for {} in {:0.1f} sec.'.format(
                 varname, process_time() - tstart))
 

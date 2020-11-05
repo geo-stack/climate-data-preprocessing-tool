@@ -44,7 +44,7 @@ class WeatherDataGapfiller(QMainWindow):
 
         # Setup the DataGapfillManager.
         self.gapfill_manager = DataGapfillManager()
-        self.gapfill_manager.sig_gapfill_progress.connect(
+        self.gapfill_manager.sig_task_progress.connect(
             self.progressbar.setValue)
         self.gapfill_manager.sig_status_message.connect(
             self.set_statusbar_text)
