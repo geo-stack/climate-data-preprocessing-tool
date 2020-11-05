@@ -335,6 +335,9 @@ class DataGapfillWorker(WorkerBase):
 
                 # Store the results.
                 y2fill.loc[group_dates, varname] = Y
+                self.sig_gapfill_progress.emit(int(
+                    (j + 1) / len(notnull_groups) * 100 / len(VARNAMES) +
+                    i / len(VARNAMES) * 100))
             self.sig_gapfill_progress.emit(int((i + 1) / len(VARNAMES) * 100))
             print('Data gapfilled for {} in {:0.1f} sec.'.format(
                 varname, process_time() - tstart))
