@@ -138,6 +138,7 @@ class DataGapfillWorker(WorkerBase):
         self.time_end = None
 
         self.WEATHER = self.wxdatasets = WeatherData()
+        self.wxdatasets.sig_task_progress.connect(self.sig_task_progress.emit)
 
         self.inputDir = None
         self.isParamsValid = False
@@ -764,14 +765,16 @@ class DataGapfillWorker(WorkerBase):
         return table2, target_info
 
 
-class WeatherData(object):
+class WeatherData(QObject):
     """
     This class contains all the weather data and weather station info
     that are needed for the gapfilling algorithm that is defined in the
     *GapFillWeather* class.
     """
+    sig_task_progress = QSignal(int)
 
     def __init__(self):
+        super().__init__()
 
         self.data = None
         self.metadata = None
@@ -858,6 +861,8 @@ class WeatherData(object):
                         left_index=True,
                         right_index=True,
                         how='outer')
+            self.sig_task_progress.emit(int(
+                i / len(paths) * 100))
 
         # Make the daily time series continuous.
         for name in VARNAMES:
