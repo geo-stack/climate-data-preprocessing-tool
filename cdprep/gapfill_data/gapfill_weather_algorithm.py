@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright © Jean-Sébastien Gosselin
-# Licensed under the terms of the MIT License
-# (https://github.com/jnsebgosselin/pygwd)
+# Copyright © Climate Data Preprocessing Tool Project Contributors
+# https://github.com/cgq-qgc/climate-data-preprocessing-tool
+#
+# This file is part of Climate Data Preprocessing Tool.
+# Licensed under the terms of the GNU General Public License.
 # -----------------------------------------------------------------------------
 
 # ---- Standard library imports
@@ -10,16 +12,13 @@ import csv
 import os
 import os.path as osp
 from time import strftime, process_time
-from copy import copy
 from datetime import datetime
 
 # ---- Third party imports
 import numpy as np
 import pandas as pd
-from xlrd.xldate import xldate_from_date_tuple
 from PyQt5.QtCore import pyqtSignal as QSignal
 from PyQt5.QtCore import QObject
-from PyQt5.QtWidgets import QApplication
 
 # import statsmodels.api as sm
 # import statsmodels.regression as sm_reg
