@@ -18,7 +18,8 @@ from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QGridLayout, QFrame, QLabel, QComboBox,
     QTextEdit, QDateEdit, QSpinBox, QRadioButton, QCheckBox, QProgressBar,
-    QApplication, QMessageBox, QToolButton, QTabWidget, QGroupBox)
+    QApplication, QMessageBox, QToolButton, QTabWidget, QGroupBox,
+    QMainWindow)
 
 # ---- Local imports
 from cdprep.config.main import CONF
@@ -28,7 +29,7 @@ from cdprep.utils.ospath import delete_file
 from cdprep.utils.qthelpers import datetime_from_qdatedit
 
 
-class WeatherDataGapfiller(QWidget):
+class WeatherDataGapfiller(QMainWindow):
 
     ConsoleSignal = QSignal(str)
 
@@ -174,13 +175,21 @@ class WeatherDataGapfiller(QWidget):
         self.progressbar.setValue(0)
         self.progressbar.hide()
 
-        # Setup the main grid.
-        main_grid = QGridLayout(self)
+        self.statustext = QLabel()
+        self.statustext.setStyleSheet(
+            "QLabel {background-color: transparent; padding: 0 0 0 3px;}")
+        self.statustext.setMinimumHeight(self.progressbar.minimumHeight())
+
+        # Setup the main widget.
+        main_widget = QWidget()
+        main_grid = QGridLayout(main_widget)
         main_grid.addWidget(self.left_panel, 0, 0)
         main_grid.addWidget(self.right_panel, 0, 1)
         main_grid.addWidget(self.progressbar, 1, 0, 1, 2)
+        main_grid.addWidget(self.statustext, 1, 0, 1, 2)
         main_grid.setColumnStretch(1, 500)
         main_grid.setRowStretch(0, 500)
+        self.setCentralWidget(main_widget)
 
     def _create_station_selection_criteria(self):
         Nmax_label = QLabel('Nbr. of stations :')
@@ -271,6 +280,9 @@ class WeatherDataGapfiller(QWidget):
         layout.addWidget(self.ABS_regression, 1, 0)
 
         return widget
+
+    def set_statusbar_text(self, text):
+        self.statustext.setText(text)
 
     @property
     def workdir(self):
