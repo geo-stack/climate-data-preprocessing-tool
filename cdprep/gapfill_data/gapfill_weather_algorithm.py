@@ -86,9 +86,16 @@ class DataGapfillManager(TaskManagerBase):
         if not postpone_exec:
             self.run_tasks()
 
+    def load_data(self, callback=None, postpone_exec=False):
+        """Read the csv files in the input data directory folder."""
+        self.add_task('load_data', callback=callback)
+        if not postpone_exec:
+            self.run_tasks()
+
     def gapfill_data(self, time_start, time_end, max_neighbors,
                      hdist_limit, vdist_limit, regression_mode,
                      callback=None, postpone_exec=False):
+        """Gapfill the data of the target station."""
         self.add_task(
             'gapfill_data',
             callback=callback,
@@ -176,10 +183,10 @@ class DataGapfillWorker(WorkerBase):
         """
         if not self.inputDir:
             print('Please specify a valid input data file directory.')
-            return []
+            return
         if not osp.exists(self.inputDir):
             print('Data Directory path does not exists.')
-            return []
+            return
 
         filepaths = [
             osp.join(self.inputDir, f) for
@@ -187,14 +194,15 @@ class DataGapfillWorker(WorkerBase):
         print('{:d} csv files were found in {}.'.format(
             len(filepaths), self.inputDir))
 
-        print('Loading data from csv files...')
+        message = 'Reading data from csv files...'
+        print(message)
+        self.sig_status_message.emit(message)
         self.target = None
         self.alt_and_dist = None
         self.corcoef = None
         self.wxdatasets.load_and_format_data(filepaths)
         print('Data loaded successfully.')
-
-        return self.wxdatasets.station_ids
+        self.sig_status_message.emit('')
 
     def get_target_station(self):
         """
@@ -255,10 +263,7 @@ class DataGapfillWorker(WorkerBase):
 
     def gapfill_data(self, time_start, time_end, max_neighbors,
                      hdist_limit, vdist_limit, regression_mode):
-        """
-        Gapfill the data of the target stations with the specified
-        parameters.
-        """
+        """Gapfill the data of the target station."""
         tstart_total = process_time()
 
         neighbors = self.get_valid_neighboring_stations(
