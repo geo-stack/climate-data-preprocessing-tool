@@ -394,6 +394,13 @@ class DataGapfillWorker(WorkerBase):
         self.sig_status_message.emit(message)
         self.sig_console_message.emit('<font color=black>%s</font>' % message)
 
+        if gapfilled_data.isnull().values.any():
+            message = ("WARNING: Some missing data were not filled because "
+                       "all neighboring stations were empty for that period.")
+            print(message)
+            self.sig_console_message.emit(
+                '<font color=red>%s</font>' % message)
+
         # Save the gapfilled data to a file.
 
         # Add Year, Month and Day to the dataset and rename some columns.
@@ -443,13 +450,6 @@ class DataGapfillWorker(WorkerBase):
         with open(filepath, 'w', encoding='utf-8') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             writer.writerows(fcontent)
-
-        if gapfilled_data.isnull().values.any():
-            message = ("WARNING: Some missing data were not filled because "
-                       "all neighboring stations were empty for that period.")
-            print(message)
-            self.sig_console_message.emit(
-                '<font color=red>%s</font>' % message)
 
         self.sig_gapfill_finished.emit(True)
         return gapfilled_data
