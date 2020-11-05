@@ -27,6 +27,7 @@ from PyQt5.QtWidgets import QApplication
 # from statsmodels.regression.quantile_regression import QuantReg
 
 # ---- Local imports
+from cdprep.utils.taskmanagers import WorkerBase, TaskManagerBase
 from cdprep.config.gui import RED, LIGHTGRAY
 from cdprep.gapfill_data.read_weather_data import read_weather_datafile
 from cdprep import __namever__
@@ -37,6 +38,41 @@ VARNAMES = PRECIP_VARIABLES + TEMP_VARIABLES
 
 
 class DataGapfiller(QObject):
+class DataGapfillManager(TaskManagerBase):
+    sig_gapfill_progress = QSignal(int)
+
+    def __init__(self):
+        super().__init__()
+        worker = DataGapfillWorker()
+        self.set_worker(worker)
+        worker.sig_gapfill_progress.connect(self.sig_gapfill_progress.emit)
+
+    def count(self):
+        """
+        Return the number of datasets that are currently loaded in the
+        gapfill data worker.
+        """
+        return self.worker().wxdatasets.count()
+
+    def set_workdir(self, workdir):
+        self.worker().inputDir = workdir
+
+    def gapfill_data(self, time_start, time_end, max_neighbors,
+                     hdist_limit, vdist_limit, regression_mode,
+                     callback=None, postpone_exec=False):
+        self.add_task(
+            'gapfill_data',
+            callback=callback,
+            time_start=time_start,
+            time_end=time_end,
+            max_neighbors=max_neighbors,
+            hdist_limit=hdist_limit,
+            vdist_limit=vdist_limit,
+            regression_mode=regression_mode)
+        if not postpone_exec:
+            self.run_tasks()
+
+
     """
     This class manage all that is related to the gap-filling of weather data
     records, including reading the data file on the disk.
