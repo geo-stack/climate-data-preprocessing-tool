@@ -39,6 +39,8 @@ class WeatherDataGapfiller(QWidget):
         # Correlation calculation won't be triggered by events when
         # CORRFLAG is 'off'
         self.CORRFLAG = 'on'
+        self._corrcoeff_update_inprogress = False
+        self._pending_corrcoeff_update = None
 
         self.__initUI__()
 
@@ -110,14 +112,14 @@ class WeatherDataGapfiller(QWidget):
         self.date_start_widget.setDisplayFormat('dd / MM / yyyy')
         self.date_start_widget.setEnabled(False)
         self.date_start_widget.dateChanged.connect(
-            self.correlation_table_display)
+            self._update_corrcoeff_table)
 
         label_To = QLabel('To :  ')
         self.date_end_widget = QDateEdit()
         self.date_end_widget.setEnabled(False)
         self.date_end_widget.setDisplayFormat('dd / MM / yyyy')
         self.date_end_widget.dateChanged.connect(
-            self.correlation_table_display)
+            self._update_corrcoeff_table)
 
         self.fillDates_widg = QWidget()
         gapfilldates_layout = QGridLayout(self.fillDates_widg)
@@ -199,7 +201,7 @@ class WeatherDataGapfiller(QWidget):
         self.distlimit.setToolTip(ttip)
         self.distlimit.setSuffix(' km')
         self.distlimit.setAlignment(Qt.AlignCenter)
-        self.distlimit.valueChanged.connect(self.correlation_table_display)
+        self.distlimit.valueChanged.connect(self._update_corrcoeff_table)
 
         ttip = ('<p>Altitude difference limit over which neighboring '
                 ' stations are excluded from the gapfilling procedure.</p>'
@@ -214,7 +216,7 @@ class WeatherDataGapfiller(QWidget):
         self.altlimit.setToolTip(ttip)
         self.altlimit.setSuffix(' m')
         self.altlimit.setAlignment(Qt.AlignCenter)
-        self.altlimit.valueChanged.connect(self.correlation_table_display)
+        self.altlimit.valueChanged.connect(self._update_corrcoeff_table)
 
         # Setup the main widget.
         widget = QGroupBox('Stations Selection Criteria')
@@ -350,31 +352,37 @@ class WeatherDataGapfiller(QWidget):
         """
         if self.CORRFLAG == 'on' and self.target_station.currentIndex() != -1:
             station_id = self.target_station.currentData()
-            self.gapfill_manager.worker().set_target_station(station_id)
-            target_station_name = (
-                self.gapfill_manager.worker()
-                .get_target_station()['Station Name'])
-            print("Correlation coefficients calculated for station {}.".format(
-                target_station_name))
-            self.correlation_table_display()
+            if self._corrcoeff_update_inprogress is True:
+                self._pending_corrcoeff_update = station_id
+            else:
+                self._corrcoeff_update_inprogress = True
+                self.gapfill_manager.set_target_station(
+                    station_id, callback=self._handle_corrcoeff_updated)
 
-    def correlation_table_display(self):
+    def _handle_corrcoeff_updated(self):
+        self._corrcoeff_update_inprogress = False
+        if self._pending_corrcoeff_update is None:
+            self._update_corrcoeff_table()
+        else:
+            self._pending_corrcoeff_update = None
+            self.update_corrcoeff()
+
+    def _update_corrcoeff_table(self):
         """
-        This method plot the table in the display area.
+        This method plot the correlation coefficient table in the display area.
 
-        It is separated from the method <update_corrcoeff> because red
+        It is separated from the method "update_corrcoeff" because red
         numbers and statistics regarding missing data for the selected
         time period can be updated in the table when the user changes the
         values without having to recalculate the correlation coefficient
         each time.
         """
-        if self.CORRFLAG == 'off' or self.target_station.currentIndex() == -1:
-            return
-        table, target_info = (
-            self.gapfill_manager.worker().generate_correlation_html_table(
-                self.get_gapfill_parameters()))
-        self.corrcoeff_textedit.setText(table)
-        self.target_station_info.setText(target_info)
+        if self.CORRFLAG == 'on' and self.target_station.currentIndex() != -1:
+            table, target_info = (
+                self.gapfill_manager.worker().generate_correlation_html_table(
+                    self.get_gapfill_parameters()))
+            self.corrcoeff_textedit.setText(table)
+            self.target_station_info.setText(target_info)
 
     # ---- Load Data
     def load_data_dir_content(self):
