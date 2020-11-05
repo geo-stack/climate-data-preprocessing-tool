@@ -37,7 +37,6 @@ TEMP_VARIABLES = ['Tmax', 'Tavg', 'Tmin']
 VARNAMES = PRECIP_VARIABLES + TEMP_VARIABLES
 
 
-class DataGapfiller(QObject):
 class DataGapfillManager(TaskManagerBase):
     sig_gapfill_progress = QSignal(int)
 
@@ -73,6 +72,7 @@ class DataGapfillManager(TaskManagerBase):
             self.run_tasks()
 
 
+class DataGapfillWorker(WorkerBase):
     """
     This class manage all that is related to the gap-filling of weather data
     records, including reading the data file on the disk.
@@ -89,8 +89,8 @@ class DataGapfillManager(TaskManagerBase):
     sig_console_message = QSignal(str)
     sig_gapfill_finished = QSignal(bool)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self):
+        super().__init__()
         self.target = None
         self.alt_and_dist = None
         self.corcoef = None
