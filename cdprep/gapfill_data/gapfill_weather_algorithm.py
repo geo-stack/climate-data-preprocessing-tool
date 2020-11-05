@@ -55,6 +55,18 @@ class DataGapfillManager(TaskManagerBase):
         """
         return self.worker().wxdatasets.count()
 
+    def get_station_names(self):
+        """
+        Return the list of station names for which data are loaded in memory.
+        """
+        return self.worker().wxdatasets.station_names
+
+    def get_station_ids(self):
+        """
+        Return the list of station IDs for which data are loaded in memory.
+        """
+        return self.worker().wxdatasets.station_ids
+
     def set_workdir(self, workdir):
         self.worker().inputDir = workdir
 
