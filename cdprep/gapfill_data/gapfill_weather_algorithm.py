@@ -39,12 +39,14 @@ VARNAMES = PRECIP_VARIABLES + TEMP_VARIABLES
 
 class DataGapfillManager(TaskManagerBase):
     sig_gapfill_progress = QSignal(int)
+    sig_status_message = QSignal(str)
 
     def __init__(self):
         super().__init__()
         worker = DataGapfillWorker()
         self.set_worker(worker)
         worker.sig_gapfill_progress.connect(self.sig_gapfill_progress.emit)
+        worker.sig_status_message.connect(self.sig_status_message.emit)
 
     def count(self):
         """
@@ -86,6 +88,7 @@ class DataGapfillWorker(WorkerBase):
     full_error_analysis : bool
     """
     sig_gapfill_progress = QSignal(int)
+    sig_status_message = QSignal(str)
     sig_console_message = QSignal(str)
     sig_gapfill_finished = QSignal(bool)
 
@@ -241,7 +244,9 @@ class DataGapfillWorker(WorkerBase):
                     '<font color=red>%s</font>' % msg)
                 continue
             tstart = process_time()
-            print('Gapfilling data for variable {}...'.format(varname))
+            message = 'Gapfilling data for variable {}...'.format(varname)
+            print(message)
+            self.sig_status_message.emit(message)
 
             reg_models = {}
             notnull = self.wxdatasets.data[varname].loc[
@@ -358,6 +363,7 @@ class DataGapfillWorker(WorkerBase):
             'Data completion for station %s completed successfully '
             'in %0.2f sec.') % (self.target, (process_time() - tstart_total))
         print(message)
+        self.sig_status_message.emit(message)
         self.sig_console_message.emit('<font color=black>%s</font>' % message)
 
         # Save the gapfilled data to a file.
@@ -843,7 +849,6 @@ class WeatherData(object):
         Compute the correlation coefficients between the target
         station and the neighboring stations for each meteorological variable.
         """
-        print('Compute correlation coefficients for the target station.')
         correl_target = None
         for var in VARNAMES:
             corr_matrix = self.data[var].corr(min_periods=365//2).rename(
