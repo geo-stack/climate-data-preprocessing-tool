@@ -58,6 +58,22 @@ class DataGapfillManager(TaskManagerBase):
     def set_workdir(self, workdir):
         self.worker().inputDir = workdir
 
+    def set_target_station(self, station_id, callback=None,
+                           postpone_exec=False):
+        """
+        Set the target station to the station corresponding
+        to the specified station id.
+
+        Setting the target station also trigger the recalculation of the
+        correlation coefficients with the neighboring stations.
+        """
+        self.add_task(
+            'set_target_station',
+            callback=callback,
+            station_id=station_id)
+        if not postpone_exec:
+            self.run_tasks()
+
     def gapfill_data(self, time_start, time_end, max_neighbors,
                      hdist_limit, vdist_limit, regression_mode,
                      callback=None, postpone_exec=False):
@@ -186,10 +202,22 @@ class DataGapfillWorker(WorkerBase):
             raise ValueError("No data currently loaded for station '{}'."
                              .format(station_id))
         else:
+            station_name = self.wxdatasets.metadata.loc[
+                station_id]['Station Name']
+
+            message = ("Calculating correlation coefficients "
+                       "for target station {}...".format(station_name))
+            print(message)
+            self.sig_status_message.emit(message)
+
             self.target = station_id
             self.alt_and_dist = self.wxdatasets.alt_and_dist_calc(station_id)
             self.corcoef = (
                 self.wxdatasets.compute_correlation_coeff(station_id))
+
+            print("Correlation coefficients calculated "
+                  "for target station {}.".format(station_name))
+            self.sig_status_message.emit('')
 
     def read_summary(self):
         return self.WEATHER.read_summary(self.outputdir)
