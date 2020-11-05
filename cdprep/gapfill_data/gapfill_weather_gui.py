@@ -301,36 +301,6 @@ class WeatherDataGapfiller(QWidget):
         """
         self.load_data_dir_content()
 
-    def load_data_dir_content(self):
-        """
-        Initiate the loading of weater data files contained in the
-        */Meteo/Input folder and display the resulting station list in the
-        target station combobox.
-        """
-        # Reset the GUI.
-        self.corrcoeff_textedit.setText('')
-        self.target_station_info.setText('')
-        self.target_station.clear()
-        QApplication.processEvents()
-
-        # Load data and fill UI with info.
-        self.CORRFLAG = 'off'
-        self.gapfill_manager.worker().load_data()
-        station_names = self.gapfill_manager.worker().wxdatasets.station_names
-        station_ids = self.gapfill_manager.worker().wxdatasets.station_ids
-        for station_name, station_id in zip(station_names, station_ids):
-            self.target_station.addItem(station_name, userData=station_id)
-        self.sta_display_summary.setHtml(
-            self.gapfill_manager.worker().generate_html_summary_table())
-
-        if len(station_names) > 0:
-            self.set_fill_and_save_dates()
-            self.target_station.blockSignals(True)
-            self.target_station.setCurrentIndex(0)
-            self.target_station.blockSignals(False)
-        self.CORRFLAG = 'on'
-        self._handle_target_station_changed(self.target_station.currentIndex())
-
     def set_fill_and_save_dates(self):
         """
         Set first and last dates of the data serie in the boxes of the
@@ -357,45 +327,12 @@ class WeatherDataGapfiller(QWidget):
             self.date_end_widget.setMinimumDate(qdatemin)
             self.date_end_widget.setMaximumDate(qdatemax)
 
-    def correlation_table_display(self):
-        """
-        This method plot the table in the display area.
-
-        It is separated from the method <update_corrcoeff> because red
-        numbers and statistics regarding missing data for the selected
-        time period can be updated in the table when the user changes the
-        values without having to recalculate the correlation coefficient
-        each time.
-        """
-        if self.CORRFLAG == 'off' or self.target_station.currentIndex() == -1:
-            return
-        table, target_info = (
-            self.gapfill_manager.worker().generate_correlation_html_table(
-                self.get_gapfill_parameters()))
-        self.corrcoeff_textedit.setText(table)
-        self.target_station_info.setText(target_info)
-
     @QSlot(int)
     def _handle_target_station_changed(self, index):
         """Handle when the target station is changed by the user."""
         self.btn_delete_data.setEnabled(index != -1)
         if index != -1:
             self.update_corrcoeff()
-
-    def update_corrcoeff(self):
-        """
-        Calculate the correlation coefficients and display the results
-        in the GUI.
-        """
-        if self.CORRFLAG == 'on' and self.target_station.currentIndex() != -1:
-            station_id = self.target_station.currentData()
-            self.gapfill_manager.worker().set_target_station(station_id)
-            target_station_name = (
-                self.gapfill_manager.worker()
-                .get_target_station()['Station Name'])
-            print("Correlation coefficients calculated for station {}.".format(
-                target_station_name))
-            self.correlation_table_display()
 
     def get_gapfill_parameters(self):
         """
@@ -416,6 +353,69 @@ class WeatherDataGapfiller(QWidget):
         """
         return [self.target_station.itemText(i) for i in
                 range(self.target_station.count())]
+
+    # ---- Correlation coefficients
+    def update_corrcoeff(self):
+        """
+        Calculate the correlation coefficients and display the results
+        in the GUI.
+        """
+        if self.CORRFLAG == 'on' and self.target_station.currentIndex() != -1:
+            station_id = self.target_station.currentData()
+            self.gapfill_manager.worker().set_target_station(station_id)
+            target_station_name = (
+                self.gapfill_manager.worker()
+                .get_target_station()['Station Name'])
+            print("Correlation coefficients calculated for station {}.".format(
+                target_station_name))
+            self.correlation_table_display()
+
+    def correlation_table_display(self):
+        """
+        This method plot the table in the display area.
+
+        It is separated from the method <update_corrcoeff> because red
+        numbers and statistics regarding missing data for the selected
+        time period can be updated in the table when the user changes the
+        values without having to recalculate the correlation coefficient
+        each time.
+        """
+        if self.CORRFLAG == 'off' or self.target_station.currentIndex() == -1:
+            return
+        table, target_info = (
+            self.gapfill_manager.worker().generate_correlation_html_table(
+                self.get_gapfill_parameters()))
+        self.corrcoeff_textedit.setText(table)
+        self.target_station_info.setText(target_info)
+
+    # ---- Load Data
+    def load_data_dir_content(self):
+        """
+        Load weater data from valid files contained in the working directory.
+        """
+        # Reset the GUI.
+        self.corrcoeff_textedit.setText('')
+        self.target_station_info.setText('')
+        self.target_station.clear()
+        QApplication.processEvents()
+
+        # Load data and fill UI with info.
+        self.CORRFLAG = 'off'
+        self.gapfill_manager.worker().load_data()
+        station_names = self.gapfill_manager.worker().wxdatasets.station_names
+        station_ids = self.gapfill_manager.worker().wxdatasets.station_ids
+        for station_name, station_id in zip(station_names, station_ids):
+            self.target_station.addItem(station_name, userData=station_id)
+        self.sta_display_summary.setHtml(
+            self.gapfill_manager.worker().generate_html_summary_table())
+
+        if len(station_names) > 0:
+            self.set_fill_and_save_dates()
+            self.target_station.blockSignals(True)
+            self.target_station.setCurrentIndex(0)
+            self.target_station.blockSignals(False)
+        self.CORRFLAG = 'on'
+        self._handle_target_station_changed(self.target_station.currentIndex())
 
     # ---- Gapfill Data
     def _handle_gapfill_btn_clicked(self):
