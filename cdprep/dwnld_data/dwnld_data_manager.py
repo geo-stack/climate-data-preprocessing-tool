@@ -22,11 +22,11 @@ import numpy as np
 import pandas as pd
 from PyQt5.QtCore import pyqtSignal as QSignal
 from PyQt5.QtCore import pyqtSlot as QSlot
-from PyQt5.QtCore import Qt, QPoint, QThread, QSize, QObject
+from PyQt5.QtCore import Qt, QThread, QSize, QObject
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QDoubleSpinBox, QComboBox, QFrame, QGridLayout, QSpinBox,
-    QPushButton, QDesktopWidget, QApplication, QFileDialog, QGroupBox, QStyle,
-    QMessageBox, QProgressBar)
+    QPushButton, QApplication, QFileDialog, QGroupBox, QStyle, QMessageBox,
+    QProgressBar)
 
 # ---- Local imports
 from cdprep.config.main import CONF
