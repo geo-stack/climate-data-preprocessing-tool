@@ -132,16 +132,20 @@ class MainWindow(QMainWindow):
         if self.data_downloader is None:
             self.data_downloader = WeatherStationDownloader(
                 workdir=self._workdir)
+            self.data_downloader.setWindowState(Qt.WindowNoState)
             self.data_downloader.show()
+
+            # Center the data downloader window to the mainwindow.
             qr = self.data_downloader.frameGeometry()
             wp = self.frameGeometry().width()
             hp = self.frameGeometry().height()
             cp = self.mapToGlobal(QPoint(wp/2, hp/2))
             qr.moveCenter(cp)
             self.data_downloader.move(qr.topLeft())
-        self.data_downloader.show()
-        self.data_downloader.activateWindow()
-        self.data_downloader.raise_()
+        else:
+            self.data_downloader.show()
+            self.data_downloader.activateWindow()
+            self.data_downloader.raise_()
             if self.data_downloader.windowState() == Qt.WindowMinimized:
                 # Window is minimised. Restore it.
                 self.data_downloader.setWindowState(Qt.WindowNoState)
