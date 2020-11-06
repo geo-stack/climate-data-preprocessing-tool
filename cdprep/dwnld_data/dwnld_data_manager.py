@@ -126,7 +126,7 @@ class WeatherStationDownloader(QWidget):
         self.dwnld_worker.sig_update_pbar.connect(self.progressbar.setValue)
 
         self.start_load_database()
-        self.resize(600, 500)
+        self.resize(1000, 450)
 
     def __initUI__(self):
         self.setWindowTitle('Download Weather Data')
