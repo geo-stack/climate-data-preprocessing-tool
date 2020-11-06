@@ -39,6 +39,7 @@ class WeatherDataGapfiller(QMainWindow):
 
         self._corrcoeff_update_inprogress = False
         self._pending_corrcoeff_update = None
+        self._loading_data_inprogress = False
 
         self.__initUI__()
 
@@ -311,10 +312,9 @@ class WeatherDataGapfiller(QMainWindow):
 
     def _handle_target_station_changed(self):
         """Handle when the target station is changed by the user."""
-        index = self.target_station.currentIndex()
-        self.btn_delete_data.setEnabled(index != -1)
-        if index != -1:
-            self.update_corrcoeff()
+        self.btn_delete_data.setEnabled(
+            self.target_station.currentIndex() != -1)
+        self.update_corrcoeff()
 
     def get_dataset_names(self):
         """
@@ -369,6 +369,8 @@ class WeatherDataGapfiller(QMainWindow):
         """
         Load weater data from valid files contained in the working directory.
         """
+        self._pending_corrcoeff_update = None
+        self._loading_data_inprogress = True
         self.left_panel.setEnabled(False)
         self.right_panel.setEnabled(False)
         self.progressbar.show()
@@ -406,6 +408,7 @@ class WeatherDataGapfiller(QMainWindow):
             self.target_station.setCurrentIndex(0)
             self.target_station.blockSignals(False)
         self._handle_target_station_changed()
+        self._loading_data_inprogress = False
 
     def _setup_fill_and_save_dates(self):
         """
