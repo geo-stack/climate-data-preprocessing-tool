@@ -106,6 +106,7 @@ class WeatherStationDownloader(QWidget):
             self.receive_load_database)
         self.stn_finder_thread = QThread()
         self.stn_finder_worker.moveToThread(self.stn_finder_thread)
+        self._database_isloading = False
 
         self.station_table = WeatherSationView()
         self.waitspinnerbar = WaitSpinnerBar()
@@ -397,23 +398,23 @@ class WeatherStationDownloader(QWidget):
         self.nbrYear.setValue(x)
         self.nbrYear.blockSignals(False)
 
-    # ---- Weather Station Finder Handlers
+    # ---- Load Station Database
     def start_load_database(self, force_fetch=False):
         """Start the process of loading the climate station database."""
-        if self.stn_finder_thread.isRunning():
-            return
+        if self._database_isloading is False:
+            self._database_isloading = True
 
-        self.station_table.clear()
-        self.waitspinnerbar.show()
+            self.station_table.clear()
+            self.waitspinnerbar.show()
 
-        # Start the downloading process.
-        if force_fetch:
-            self.stn_finder_thread.started.connect(
-                self.stn_finder_worker.fetch_database)
-        else:
-            self.stn_finder_thread.started.connect(
-                self.stn_finder_worker.load_database)
-        self.stn_finder_thread.start()
+            # Start the downloading process.
+            if force_fetch:
+                self.stn_finder_thread.started.connect(
+                    self.stn_finder_worker.fetch_database)
+            else:
+                self.stn_finder_thread.started.connect(
+                    self.stn_finder_worker.load_database)
+            self.stn_finder_thread.start()
 
     @QSlot()
     def receive_load_database(self):
@@ -436,6 +437,7 @@ class WeatherStationDownloader(QWidget):
             self.waitspinnerbar.show_warning_icon()
         else:
             self.waitspinnerbar.hide()
+        self._database_isloading = False
 
     # ---- GUI handlers
     def minYear_changed(self):
