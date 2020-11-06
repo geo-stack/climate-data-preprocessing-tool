@@ -142,6 +142,9 @@ class MainWindow(QMainWindow):
         self.data_downloader.show()
         self.data_downloader.activateWindow()
         self.data_downloader.raise_()
+            if self.data_downloader.windowState() == Qt.WindowMinimized:
+                # Window is minimised. Restore it.
+                self.data_downloader.setWindowState(Qt.WindowNoState)
 
     # ---- Main window settings
     def _restore_window_geometry(self):
