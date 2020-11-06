@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright © Jean-Sébastien Gosselin
-# Licensed under the terms of the MIT License
-# (https://github.com/jnsebgosselin/pygwd)
+# Copyright © Climate Data Preprocessing Tool Project Contributors
+# https://github.com/cgq-qgc/climate-data-preprocessing-tool
+#
+# This file is part of Climate Data Preprocessing Tool.
+# Licensed under the terms of the GNU General Public License.
 # -----------------------------------------------------------------------------
 
 # ---- Standard library imports
@@ -10,16 +12,13 @@ import csv
 import os
 import os.path as osp
 from time import strftime, process_time
-from copy import copy
 from datetime import datetime
 
 # ---- Third party imports
 import numpy as np
 import pandas as pd
-from xlrd.xldate import xldate_from_date_tuple
 from PyQt5.QtCore import pyqtSignal as QSignal
 from PyQt5.QtCore import QObject
-from PyQt5.QtWidgets import QApplication
 
 # import statsmodels.api as sm
 # import statsmodels.regression as sm_reg
@@ -27,6 +26,7 @@ from PyQt5.QtWidgets import QApplication
 # from statsmodels.regression.quantile_regression import QuantReg
 
 # ---- Local imports
+from cdprep.utils.taskmanagers import WorkerBase, TaskManagerBase
 from cdprep.config.gui import RED, LIGHTGRAY
 from cdprep.gapfill_data.read_weather_data import read_weather_datafile
 from cdprep import __namever__
@@ -36,7 +36,79 @@ TEMP_VARIABLES = ['Tmax', 'Tavg', 'Tmin']
 VARNAMES = PRECIP_VARIABLES + TEMP_VARIABLES
 
 
-class DataGapfiller(QObject):
+class DataGapfillManager(TaskManagerBase):
+    sig_task_progress = QSignal(int)
+    sig_status_message = QSignal(str)
+
+    def __init__(self):
+        super().__init__()
+        worker = DataGapfillWorker()
+        self.set_worker(worker)
+        worker.sig_task_progress.connect(self.sig_task_progress.emit)
+        worker.sig_status_message.connect(self.sig_status_message.emit)
+
+    def count(self):
+        """
+        Return the number of datasets that are currently loaded in the
+        gapfill data worker.
+        """
+        return self.worker().wxdatasets.count()
+
+    def get_station_names(self):
+        """
+        Return the list of station names for which data are loaded in memory.
+        """
+        return self.worker().wxdatasets.station_names
+
+    def get_station_ids(self):
+        """
+        Return the list of station IDs for which data are loaded in memory.
+        """
+        return self.worker().wxdatasets.station_ids
+
+    def set_workdir(self, workdir):
+        self.worker().inputDir = workdir
+
+    def set_target_station(self, station_id, callback=None,
+                           postpone_exec=False):
+        """
+        Set the target station to the station corresponding
+        to the specified station id.
+
+        Setting the target station also trigger the recalculation of the
+        correlation coefficients with the neighboring stations.
+        """
+        self.add_task(
+            'set_target_station',
+            callback=callback,
+            station_id=station_id)
+        if not postpone_exec:
+            self.run_tasks()
+
+    def load_data(self, callback=None, postpone_exec=False):
+        """Read the csv files in the input data directory folder."""
+        self.add_task('load_data', callback=callback)
+        if not postpone_exec:
+            self.run_tasks()
+
+    def gapfill_data(self, time_start, time_end, max_neighbors,
+                     hdist_limit, vdist_limit, regression_mode,
+                     callback=None, postpone_exec=False):
+        """Gapfill the data of the target station."""
+        self.add_task(
+            'gapfill_data',
+            callback=callback,
+            time_start=time_start,
+            time_end=time_end,
+            max_neighbors=max_neighbors,
+            hdist_limit=hdist_limit,
+            vdist_limit=vdist_limit,
+            regression_mode=regression_mode)
+        if not postpone_exec:
+            self.run_tasks()
+
+
+class DataGapfillWorker(WorkerBase):
     """
     This class manage all that is related to the gap-filling of weather data
     records, including reading the data file on the disk.
@@ -49,12 +121,13 @@ class DataGapfiller(QObject):
     regression_mode : int
     full_error_analysis : bool
     """
-    sig_gapfill_progress = QSignal(int)
+    sig_task_progress = QSignal(int)
+    sig_status_message = QSignal(str)
     sig_console_message = QSignal(str)
     sig_gapfill_finished = QSignal(bool)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self):
+        super().__init__()
         self.target = None
         self.alt_and_dist = None
         self.corcoef = None
@@ -64,6 +137,7 @@ class DataGapfiller(QObject):
         self.time_end = None
 
         self.WEATHER = self.wxdatasets = WeatherData()
+        self.wxdatasets.sig_task_progress.connect(self.sig_task_progress.emit)
 
         self.inputDir = None
         self.isParamsValid = False
@@ -109,10 +183,10 @@ class DataGapfiller(QObject):
         """
         if not self.inputDir:
             print('Please specify a valid input data file directory.')
-            return []
+            return
         if not osp.exists(self.inputDir):
             print('Data Directory path does not exists.')
-            return []
+            return
 
         filepaths = [
             osp.join(self.inputDir, f) for
@@ -120,14 +194,15 @@ class DataGapfiller(QObject):
         print('{:d} csv files were found in {}.'.format(
             len(filepaths), self.inputDir))
 
-        print('Loading data from csv files...')
+        message = 'Reading data from csv files...'
+        print(message)
+        self.sig_status_message.emit(message)
         self.target = None
         self.alt_and_dist = None
         self.corcoef = None
         self.wxdatasets.load_and_format_data(filepaths)
         print('Data loaded successfully.')
-
-        return self.wxdatasets.station_ids
+        self.sig_status_message.emit('')
 
     def get_target_station(self):
         """
@@ -147,15 +222,27 @@ class DataGapfiller(QObject):
             raise ValueError("No data currently loaded for station '{}'."
                              .format(station_id))
         else:
+            station_name = self.wxdatasets.metadata.loc[
+                station_id]['Station Name']
+
+            message = ("Calculating correlation coefficients "
+                       "for target station {}...".format(station_name))
+            print(message)
+            self.sig_status_message.emit(message)
+
             self.target = station_id
             self.alt_and_dist = self.wxdatasets.alt_and_dist_calc(station_id)
             self.corcoef = (
                 self.wxdatasets.compute_correlation_coeff(station_id))
 
+            print("Correlation coefficients calculated "
+                  "for target station {}.".format(station_name))
+            self.sig_status_message.emit('')
+
     def read_summary(self):
         return self.WEATHER.read_summary(self.outputdir)
 
-    def get_valid_neighboring_stations(self):
+    def get_valid_neighboring_stations(self, hdist_limit, vdist_limit):
         """
         Return the list of neighboring stations that are within the
         horizontal and altitude range of the target station.
@@ -164,25 +251,28 @@ class DataGapfiller(QObject):
         # to a negative number, all stations are kept regardless of their
         # distance or altitude difference with the target station.
         valid_stations = self.alt_and_dist.copy()
-        if self.limitDist > 0:
+        if hdist_limit > 0:
             valid_stations = valid_stations[
-                valid_stations['hordist'] <= self.limitDist]
-        if self.limitAlt > 0:
+                valid_stations['hordist'] <= hdist_limit]
+        if vdist_limit > 0:
             valid_stations = valid_stations[
-                valid_stations['altdiff'].abs() <= self.limitAlt]
+                valid_stations['altdiff'].abs() <= vdist_limit]
         valid_stations = valid_stations.index.values.tolist()
         valid_stations.remove(self.target)
         return valid_stations
 
-    def gapfill_data(self):
+    def gapfill_data(self, time_start, time_end, max_neighbors,
+                     hdist_limit, vdist_limit, regression_mode):
+        """Gapfill the data of the target station."""
         tstart_total = process_time()
 
-        neighbors = self.get_valid_neighboring_stations()
+        neighbors = self.get_valid_neighboring_stations(
+            hdist_limit, vdist_limit)
         gapfill_date_range = pd.date_range(
-            start=self.time_start, end=self.time_end, freq='D')
+            start=time_start, end=time_end, freq='D')
         y2fill = pd.DataFrame(
             np.nan, index=gapfill_date_range, columns=VARNAMES)
-        self.sig_gapfill_progress.emit(0)
+        self.sig_task_progress.emit(0)
         for i, varname in enumerate(VARNAMES):
             # When a station does not have enough data for a given variable,
             # its correlation coefficient is set to nan. If all the stations
@@ -199,13 +289,15 @@ class DataGapfiller(QObject):
                     '<font color=red>%s</font>' % msg)
                 continue
             tstart = process_time()
-            print('Gapfilling data for variable {}...'.format(varname))
+            message = 'Gapfilling data for variable {}...'.format(varname)
+            print(message)
+            self.sig_status_message.emit(message)
 
             reg_models = {}
             notnull = self.wxdatasets.data[varname].loc[
                 gapfill_date_range, neighbors].notnull()
             notnull_groups = notnull.groupby(by=neighbors, axis=0)
-            for group in notnull_groups:
+            for j, group in enumerate(notnull_groups):
                 group_dates = group[1].index
                 group_neighbors = group[1].columns[list(group[0])]
                 if len(group_neighbors) == 0:
@@ -219,7 +311,7 @@ class DataGapfiller(QObject):
                     self.corcoef.loc[group_neighbors]
                     .sort_values(varname, axis=0, ascending=False)
                     .index
-                    )[:self.NSTAmax]
+                    )[:max_neighbors]
 
                 neighbors_combi = ', '.join(model_neighbors)
                 if neighbors_combi in reg_models:
@@ -260,7 +352,7 @@ class DataGapfiller(QObject):
                         X = np.hstack((np.ones((len(Y), 1)), X))
 
                     # Generate the MLR Model
-                    A = self.build_mlr_model(X, Y)
+                    A = self.build_mlr_model(X, Y, regression_mode)
 
                     # Calcul the RMSE.
 
@@ -293,7 +385,10 @@ class DataGapfiller(QObject):
 
                 # Store the results.
                 y2fill.loc[group_dates, varname] = Y
-            self.sig_gapfill_progress.emit(int((i + 1) / len(VARNAMES) * 100))
+                self.sig_task_progress.emit(int(
+                    (j + 1) / len(notnull_groups) * 100 / len(VARNAMES) +
+                    i / len(VARNAMES) * 100))
+            self.sig_task_progress.emit(int((i + 1) / len(VARNAMES) * 100))
             print('Data gapfilled for {} in {:0.1f} sec.'.format(
                 varname, process_time() - tstart))
 
@@ -313,7 +408,15 @@ class DataGapfiller(QObject):
             'Data completion for station %s completed successfully '
             'in %0.2f sec.') % (self.target, (process_time() - tstart_total))
         print(message)
+        self.sig_status_message.emit(message)
         self.sig_console_message.emit('<font color=black>%s</font>' % message)
+
+        if gapfilled_data.isnull().values.any():
+            message = ("WARNING: Some missing data were not filled because "
+                       "all neighboring stations were empty for that period.")
+            print(message)
+            self.sig_console_message.emit(
+                '<font color=red>%s</font>' % message)
 
         # Save the gapfilled data to a file.
 
@@ -365,22 +468,15 @@ class DataGapfiller(QObject):
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             writer.writerows(fcontent)
 
-        if gapfilled_data.isnull().values.any():
-            message = ("WARNING: Some missing data were not filled because "
-                       "all neighboring stations were empty for that period.")
-            print(message)
-            self.sig_console_message.emit(
-                '<font color=red>%s</font>' % message)
-
         self.sig_gapfill_finished.emit(True)
         return gapfilled_data
 
-    def build_mlr_model(self, X, Y):
+    def build_mlr_model(self, X, Y, regression_mode):
         """
         Build a multiple linear model using the provided independent (X) and
         dependent (y) variable data.
         """
-        if self.regression_mode == 1:  # Ordinary Least Square regression
+        if regression_mode == 1:  # Ordinary Least Square regression
 
             # http://statsmodels.sourceforge.net/devel/generated/
             # statsmodels.regression.linear_model.OLS.html
@@ -668,14 +764,16 @@ class DataGapfiller(QObject):
         return table2, target_info
 
 
-class WeatherData(object):
+class WeatherData(QObject):
     """
     This class contains all the weather data and weather station info
     that are needed for the gapfilling algorithm that is defined in the
     *GapFillWeather* class.
     """
+    sig_task_progress = QSignal(int)
 
     def __init__(self):
+        super().__init__()
 
         self.data = None
         self.metadata = None
@@ -762,6 +860,8 @@ class WeatherData(object):
                         left_index=True,
                         right_index=True,
                         how='outer')
+            self.sig_task_progress.emit(int(
+                i / len(paths) * 100))
 
         # Make the daily time series continuous.
         for name in VARNAMES:
@@ -798,7 +898,6 @@ class WeatherData(object):
         Compute the correlation coefficients between the target
         station and the neighboring stations for each meteorological variable.
         """
-        print('Compute correlation coefficients for the target station.')
         correl_target = None
         for var in VARNAMES:
             corr_matrix = self.data[var].corr(min_periods=365//2).rename(
@@ -1014,27 +1113,22 @@ def L1LinearRegression(X, Y):
 
 
 if __name__ == '__main__':
-    gapfiller = DataGapfiller()
+    gapfiller = DataGapfillWorker()
 
     # Set the input and output directory.
-    gapfiller.inputDir = 'D:/gapfill_weather_data_test'
+    gapfiller.inputDir = 'D:/choix_stations_telemetrie/weather_data'
 
     # Load weather the data files and set the target station.
     station_names = gapfiller.load_data()
-    gapfiller.set_target_station('7024627')
-
-    # Define the plage over which data needs to be filled.
-    gapfiller.time_start = datetime.strptime('1980-01-01', '%Y-%m-%d')
-    gapfiller.time_end = datetime.strptime('2020-01-01', '%Y-%m-%d')
+    gapfiller.set_target_station('7050240')
 
     # Set the gapfill parameters.
-    gapfiller.NSTAmax = 3
-    gapfiller.limitDist = 100
-    gapfiller.limitAlt = 350
-    gapfiller.full_error_analysis = False
-    gapfiller.leave_one_out = False
-    gapfiller.regression_mode = 0
+    gapfilled_data = gapfiller.gapfill_data(
+        time_start=datetime.strptime('1980-01-01', '%Y-%m-%d'),
+        time_end=datetime.strptime('2020-01-01', '%Y-%m-%d'),
+        hdist_limit=350,
+        vdist_limit=100,
+        max_neighbors=3,
+        regression_mode=0)
     # 0 -> Least Absolute Deviation (LAD)
     # 1 -> Ordinary Least-Square (OLS)
-
-    gapfilled_data = gapfiller.gapfill_data()
