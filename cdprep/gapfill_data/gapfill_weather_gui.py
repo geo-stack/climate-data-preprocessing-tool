@@ -196,6 +196,7 @@ class WeatherDataGapfiller(QMainWindow):
         Nmax_label = QLabel('Nbr. of stations :')
         self.Nmax = QSpinBox()
         self.Nmax.setRange(0, 99)
+        self.Nmax.setMinimum(1)
         self.Nmax.setValue(CONF.get('gapfill_data', 'nbr_of_station', 4))
         self.Nmax.setAlignment(Qt.AlignCenter)
 
