@@ -52,11 +52,11 @@ import os
 import sys
 
 
-version_info = (0, 1, 1)
+version_info = (0, 1, 2)
 __version__ = '.'.join(map(str, version_info))
 __appname__ = 'Climate Data Preprocessing Tool'
 __namever__ = __appname__ + " " + __version__
-__date__ = '02/11/2020'
+__date__ = '06/11/2020'
 __project_url__ = "https://github.com/cgq-qgc/climate-data-preprocessing-tool"
 __releases_url__ = __project_url__ + "/releases"
 __releases_api__ = "https://api.github.com/repos/cgq-qgc/climate-data-preprocessing-tool/releases"
