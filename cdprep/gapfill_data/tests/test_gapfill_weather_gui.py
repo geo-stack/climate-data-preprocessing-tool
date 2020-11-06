@@ -75,27 +75,38 @@ def datagapfiller(qtbot, mocker, conf):
 # =============================================================================
 # ---- Tests for the WeatherDataGapfiller
 # =============================================================================
-def test_load_data(datagapfiller, workdir):
+def test_load_data(datagapfiller, workdir, qtbot):
     """
     Test that loading input data automatically from the working directory
     is working as expected.
     """
     assert datagapfiller
     assert datagapfiller.workdir is None
-    assert datagapfiller.gapfill_worker.wxdatasets.count() == 0
+    assert datagapfiller.gapfill_manager.count() == 0
 
     # Set the working directory to the test directory that contains
     # 3 valid datafiles.
+    assert datagapfiller._loading_data_inprogress is False
     datagapfiller.set_workdir(workdir)
+    assert datagapfiller._loading_data_inprogress is True
+    qtbot.waitUntil(lambda: datagapfiller._loading_data_inprogress is False)
+    assert datagapfiller._corrcoeff_update_inprogress is True
+    qtbot.waitUntil(
+        lambda: datagapfiller._corrcoeff_update_inprogress is False)
+
     assert datagapfiller.workdir == workdir
     assert osp.basename(workdir) == "@ tèst-fïl! 'dätèt!"
-    assert datagapfiller.gapfill_worker.wxdatasets.count() == 3
+    assert datagapfiller.gapfill_manager.count() == 3
 
     # Set the working directory to a directory that doesn't contain any
     # valid datafile.
     datagapfiller.set_workdir(osp.dirname(workdir))
+    assert datagapfiller._loading_data_inprogress is True
+    qtbot.waitUntil(lambda: datagapfiller._loading_data_inprogress is False)
+    assert datagapfiller._corrcoeff_update_inprogress is False
+
     assert datagapfiller.workdir == osp.dirname(workdir)
-    assert datagapfiller.gapfill_worker.wxdatasets.count() == 0
+    assert datagapfiller.gapfill_manager.count() == 0
 
 
 if __name__ == "__main__":

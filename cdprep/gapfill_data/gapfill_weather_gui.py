@@ -8,28 +8,28 @@
 # -----------------------------------------------------------------------------
 
 # ---- Standard imports
-from time import sleep
 import os
 import os.path as osp
 
 # ---- Third party imports
 from PyQt5.QtCore import pyqtSlot as QSlot
 from PyQt5.QtCore import pyqtSignal as QSignal
-from PyQt5.QtCore import Qt, QThread, QDate
+from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QGridLayout, QFrame, QLabel, QComboBox,
     QTextEdit, QDateEdit, QSpinBox, QRadioButton, QCheckBox, QProgressBar,
-    QApplication, QMessageBox, QToolButton, QTabWidget, QGroupBox)
+    QApplication, QMessageBox, QToolButton, QTabWidget, QGroupBox,
+    QMainWindow)
 
 # ---- Local imports
 from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
-from cdprep.gapfill_data.gapfill_weather_algorithm import DataGapfiller
+from cdprep.gapfill_data.gapfill_weather_algorithm import DataGapfillManager
 from cdprep.utils.ospath import delete_file
 from cdprep.utils.qthelpers import datetime_from_qdatedit
 
 
-class WeatherDataGapfiller(QWidget):
+class WeatherDataGapfiller(QMainWindow):
 
     ConsoleSignal = QSignal(str)
 
@@ -37,27 +37,18 @@ class WeatherDataGapfiller(QWidget):
         super().__init__(parent)
         self._workdir = None
 
-        self.isFillAll_inProgress = False
-
-        # Correlation calculation won't be triggered by events when
-        # CORRFLAG is 'off'
-        self.CORRFLAG = 'on'
+        self._corrcoeff_update_inprogress = False
+        self._pending_corrcoeff_update = None
+        self._loading_data_inprogress = False
 
         self.__initUI__()
 
-        # Setup gap fill worker and thread :
-        self.gapfill_worker = DataGapfiller()
-        self.gapfill_worker.sig_gapfill_finished.connect(
-            self.gapfill_worker_return)
-        self.gapfill_worker.sig_gapfill_progress.connect(
+        # Setup the DataGapfillManager.
+        self.gapfill_manager = DataGapfillManager()
+        self.gapfill_manager.sig_task_progress.connect(
             self.progressbar.setValue)
-        self.gapfill_worker.sig_console_message.connect(
-            self.ConsoleSignal.emit)
-
-        self.gapfill_thread = QThread()
-        self.gapfill_worker.moveToThread(self.gapfill_thread)
-        self.gapfill_thread.started.connect(
-            self.gapfill_worker.gapfill_data)
+        self.gapfill_manager.sig_status_message.connect(
+            self.set_statusbar_text)
 
     def __initUI__(self):
         self.setWindowIcon(get_icon('master'))
@@ -92,7 +83,7 @@ class WeatherDataGapfiller(QWidget):
             'Force the reloading of the weather data files')
         self.btn_refresh_staList.setIconSize(get_iconsize('small'))
         self.btn_refresh_staList.setAutoRaise(True)
-        self.btn_refresh_staList.clicked.connect(self.btn_refresh_isclicked)
+        self.btn_refresh_staList.clicked.connect(self.load_data_dir_content)
 
         self.btn_delete_data = QToolButton()
         self.btn_delete_data.setIcon(get_icon('delete_data'))
@@ -122,14 +113,14 @@ class WeatherDataGapfiller(QWidget):
         self.date_start_widget.setDisplayFormat('dd / MM / yyyy')
         self.date_start_widget.setEnabled(False)
         self.date_start_widget.dateChanged.connect(
-            self.correlation_table_display)
+            self._update_corrcoeff_table)
 
         label_To = QLabel('To :  ')
         self.date_end_widget = QDateEdit()
         self.date_end_widget.setEnabled(False)
         self.date_end_widget.setDisplayFormat('dd / MM / yyyy')
         self.date_end_widget.dateChanged.connect(
-            self.correlation_table_display)
+            self._update_corrcoeff_table)
 
         self.fillDates_widg = QWidget()
         gapfilldates_layout = QGridLayout(self.fillDates_widg)
@@ -174,22 +165,32 @@ class WeatherDataGapfiller(QWidget):
         self.sta_display_summary.setFrameStyle(0)
         self.sta_display_summary.document().setDocumentMargin(10)
 
-        right_panel = QTabWidget()
-        right_panel.addTab(self.corrcoeff_textedit, 'Correlation Coefficients')
-        right_panel.addTab(self.sta_display_summary, 'Data Overview')
+        self.right_panel = QTabWidget()
+        self.right_panel.addTab(
+            self.corrcoeff_textedit, 'Correlation Coefficients')
+        self.right_panel.addTab(
+            self.sta_display_summary, 'Data Overview')
 
         # Setup the progressbar.
         self.progressbar = QProgressBar()
         self.progressbar.setValue(0)
         self.progressbar.hide()
 
-        # Setup the main grid.
-        main_grid = QGridLayout(self)
+        self.statustext = QLabel()
+        self.statustext.setStyleSheet(
+            "QLabel {background-color: transparent; padding: 0 0 0 3px;}")
+        self.statustext.setMinimumHeight(self.progressbar.minimumHeight())
+
+        # Setup the main widget.
+        main_widget = QWidget()
+        main_grid = QGridLayout(main_widget)
         main_grid.addWidget(self.left_panel, 0, 0)
-        main_grid.addWidget(right_panel, 0, 1)
+        main_grid.addWidget(self.right_panel, 0, 1)
         main_grid.addWidget(self.progressbar, 1, 0, 1, 2)
+        main_grid.addWidget(self.statustext, 1, 0, 1, 2)
         main_grid.setColumnStretch(1, 500)
         main_grid.setRowStretch(0, 500)
+        self.setCentralWidget(main_widget)
 
     def _create_station_selection_criteria(self):
         Nmax_label = QLabel('Nbr. of stations :')
@@ -212,7 +213,7 @@ class WeatherDataGapfiller(QWidget):
         self.distlimit.setToolTip(ttip)
         self.distlimit.setSuffix(' km')
         self.distlimit.setAlignment(Qt.AlignCenter)
-        self.distlimit.valueChanged.connect(self.correlation_table_display)
+        self.distlimit.valueChanged.connect(self._update_corrcoeff_table)
 
         ttip = ('<p>Altitude difference limit over which neighboring '
                 ' stations are excluded from the gapfilling procedure.</p>'
@@ -227,7 +228,7 @@ class WeatherDataGapfiller(QWidget):
         self.altlimit.setToolTip(ttip)
         self.altlimit.setSuffix(' m')
         self.altlimit.setAlignment(Qt.AlignCenter)
-        self.altlimit.valueChanged.connect(self.correlation_table_display)
+        self.altlimit.valueChanged.connect(self._update_corrcoeff_table)
 
         # Setup the main widget.
         widget = QGroupBox('Stations Selection Criteria')
@@ -282,6 +283,9 @@ class WeatherDataGapfiller(QWidget):
 
         return widget
 
+    def set_statusbar_text(self, text):
+        self.statustext.setText(text)
+
     @property
     def workdir(self):
         return self._workdir
@@ -291,7 +295,7 @@ class WeatherDataGapfiller(QWidget):
         Set the working directory to dirname.
         """
         self._workdir = dirname
-        self.gapfill_worker.inputDir = dirname
+        self.gapfill_manager.set_workdir(dirname)
         self.load_data_dir_content()
 
     def delete_current_dataset(self):
@@ -301,122 +305,143 @@ class WeatherDataGapfiller(QWidget):
         """
         current_index = self.target_station.currentIndex()
         if current_index != -1:
-            basename = self.gapfill_worker.WEATHER.fnames[current_index]
-            dirname = self.gapfill_worker.inputDir
-            filename = os.path.join(dirname, basename)
+            basename = self.gapfill_manager.worker().wxdatasets.fnames[
+                current_index]
+            filename = os.path.join(self.workdir, basename)
             delete_file(filename)
             self.load_data_dir_content()
 
-    def btn_refresh_isclicked(self):
-        """
-        Handles when the button to refresh the list of input daily weather
-        datafiles is clicked
-        """
-        self.load_data_dir_content()
-
-    def load_data_dir_content(self):
-        """
-        Initiate the loading of weater data files contained in the
-        */Meteo/Input folder and display the resulting station list in the
-        target station combobox.
-        """
-        # Reset the GUI.
-        self.corrcoeff_textedit.setText('')
-        self.target_station_info.setText('')
-        self.target_station.clear()
-        QApplication.processEvents()
-
-        # Load data and fill UI with info.
-        self.CORRFLAG = 'off'
-        self.gapfill_worker.load_data()
-        station_names = self.gapfill_worker.wxdatasets.station_names
-        station_ids = self.gapfill_worker.wxdatasets.station_ids
-        for station_name, station_id in zip(station_names, station_ids):
-            self.target_station.addItem(station_name, userData=station_id)
-        self.sta_display_summary.setHtml(
-            self.gapfill_worker.generate_html_summary_table())
-
-        if len(station_names) > 0:
-            self.set_fill_and_save_dates()
-            self.target_station.blockSignals(True)
-            self.target_station.setCurrentIndex(0)
-            self.target_station.blockSignals(False)
-        self.CORRFLAG = 'on'
-        self._handle_target_station_changed(self.target_station.currentIndex())
-
-    def set_fill_and_save_dates(self):
-        """
-        Set first and last dates of the data serie in the boxes of the
-        *Fill and Save* area.
-        """
-        if self.gapfill_worker.wxdatasets.count():
-            self.date_start_widget.setEnabled(True)
-            self.date_end_widget.setEnabled(True)
-
-            mindate = (
-                self.gapfill_worker.wxdatasets.metadata['first_date'].min())
-            maxdate = (
-                self.gapfill_worker.wxdatasets.metadata['last_date'].max())
-            qdatemin = QDate(mindate.year, mindate.month, mindate.day)
-            qdatemax = QDate(maxdate.year, maxdate.month, maxdate.day)
-
-            self.date_start_widget.setDate(qdatemin)
-            self.date_start_widget.setMinimumDate(qdatemin)
-            self.date_start_widget.setMaximumDate(qdatemax)
-
-            self.date_end_widget.setDate(qdatemax)
-            self.date_end_widget.setMinimumDate(qdatemin)
-            self.date_end_widget.setMaximumDate(qdatemax)
-
-    def correlation_table_display(self):
-        """
-        This method plot the table in the display area.
-
-        It is separated from the method <update_corrcoeff> because red
-        numbers and statistics regarding missing data for the selected
-        time period can be updated in the table when the user changes the
-        values without having to recalculate the correlation coefficient
-        each time.
-        """
-        if self.CORRFLAG == 'off' or self.target_station.currentIndex() == -1:
-            return
-        table, target_info = (
-            self.gapfill_worker.generate_correlation_html_table(
-                self.get_gapfill_parameters()))
-        self.corrcoeff_textedit.setText(table)
-        self.target_station_info.setText(target_info)
-
-    @QSlot(int)
-    def _handle_target_station_changed(self, index):
+    def _handle_target_station_changed(self):
         """Handle when the target station is changed by the user."""
-        self.btn_delete_data.setEnabled(index != -1)
-        if index != -1:
-            self.update_corrcoeff()
+        self.btn_delete_data.setEnabled(
+            self.target_station.currentIndex() != -1)
+        self.update_corrcoeff()
 
+    def get_dataset_names(self):
+        """
+        Return a list of the names of the dataset that are loaded in
+        memory and listed in the target station dropdown menu.
+        """
+        return [self.target_station.itemText(i) for i in
+                range(self.target_station.count())]
+
+    # ---- Correlation coefficients
     def update_corrcoeff(self):
         """
         Calculate the correlation coefficients and display the results
         in the GUI.
         """
-        if self.CORRFLAG == 'on' and self.target_station.currentIndex() != -1:
+        if self.target_station.currentIndex() != -1:
             station_id = self.target_station.currentData()
-            self.gapfill_worker.set_target_station(station_id)
-            print("Correlation coefficients calculated for station {}.".format(
-                self.gapfill_worker.get_target_station()['Station Name']))
-            self.correlation_table_display()
+            if self._corrcoeff_update_inprogress is True:
+                self._pending_corrcoeff_update = station_id
+            else:
+                self._corrcoeff_update_inprogress = True
+                self.gapfill_manager.set_target_station(
+                    station_id, callback=self._handle_corrcoeff_updated)
 
-    def restore_gui(self):
-        self.btn_fill.setIcon(get_icon('fill_data'))
-        self.btn_fill.setEnabled(True)
+    def _handle_corrcoeff_updated(self):
+        self._corrcoeff_update_inprogress = False
+        if self._pending_corrcoeff_update is None:
+            self._update_corrcoeff_table()
+        else:
+            self._pending_corrcoeff_update = None
+            self.update_corrcoeff()
 
-        self.target_widget.setEnabled(True)
-        self.fillDates_widg.setEnabled(True)
-        self._regression_model_groupbox.setEnabled(True)
-        self._station_selection_groupbox.setEnabled(True)
-        self.progressbar.setValue(0)
-        QApplication.processEvents()
+    def _update_corrcoeff_table(self):
+        """
+        This method plot the correlation coefficient table in the display area.
+
+        It is separated from the method "update_corrcoeff" because red
+        numbers and statistics regarding missing data for the selected
+        time period can be updated in the table when the user changes the
+        values without having to recalculate the correlation coefficient
+        each time.
+        """
+        if self.target_station.currentIndex() != -1:
+            table, target_info = (
+                self.gapfill_manager.worker().generate_correlation_html_table(
+                    self.get_gapfill_parameters()))
+            self.corrcoeff_textedit.setText(table)
+            self.target_station_info.setText(target_info)
+
+    # ---- Load Data
+    def load_data_dir_content(self):
+        """
+        Load weater data from valid files contained in the working directory.
+        """
+        self._pending_corrcoeff_update = None
+        self._loading_data_inprogress = True
+        self.left_panel.setEnabled(False)
+        self.right_panel.setEnabled(False)
+        self.progressbar.show()
+
+        self.corrcoeff_textedit.setText('')
+        self.target_station_info.setText('')
+        self.target_station.clear()
+
+        self.gapfill_manager.load_data(
+            callback=self._handle_data_dir_content_loaded)
+
+    def _handle_data_dir_content_loaded(self):
+        """
+        Handle when data finished loaded from valid files contained in
+        the working directory.
+        """
+        self.left_panel.setEnabled(True)
+        self.right_panel.setEnabled(True)
         self.progressbar.hide()
+        self.progressbar.setValue(0)
 
+        self.target_station.blockSignals(True)
+        station_names = self.gapfill_manager.get_station_names()
+        station_ids = self.gapfill_manager.get_station_ids()
+        for station_name, station_id in zip(station_names, station_ids):
+            self.target_station.addItem(station_name, userData=station_id)
+        self.target_station.blockSignals(False)
+
+        self.sta_display_summary.setHtml(
+            self.gapfill_manager.worker().generate_html_summary_table())
+
+        if len(station_names) > 0:
+            self._setup_fill_and_save_dates()
+            self.target_station.blockSignals(True)
+            self.target_station.setCurrentIndex(0)
+            self.target_station.blockSignals(False)
+        self._handle_target_station_changed()
+        self._loading_data_inprogress = False
+
+    def _setup_fill_and_save_dates(self):
+        """
+        Set first and last dates of the 'Fill data for weather station'.
+        """
+        if self.gapfill_manager.count():
+            self.date_start_widget.setEnabled(True)
+            self.date_end_widget.setEnabled(True)
+
+            mindate = (
+                self.gapfill_manager.worker()
+                .wxdatasets.metadata['first_date'].min())
+            maxdate = (
+                self.gapfill_manager.worker()
+                .wxdatasets.metadata['last_date'].max())
+
+            qdatemin = QDate(mindate.year, mindate.month, mindate.day)
+            qdatemax = QDate(maxdate.year, maxdate.month, maxdate.day)
+
+            self.date_start_widget.blockSignals(True)
+            self.date_start_widget.setDate(qdatemin)
+            self.date_start_widget.setMinimumDate(qdatemin)
+            self.date_start_widget.setMaximumDate(qdatemax)
+            self.date_start_widget.blockSignals(False)
+
+            self.date_end_widget.blockSignals(True)
+            self.date_end_widget.setDate(qdatemax)
+            self.date_end_widget.setMinimumDate(qdatemin)
+            self.date_end_widget.setMaximumDate(qdatemax)
+            self.date_end_widget.blockSignals(False)
+
+    # ---- Gapfill Data
     def get_gapfill_parameters(self):
         """
         Return a dictionary containing the parameters that are set in the GUI
@@ -429,19 +454,11 @@ class WeatherDataGapfiller(QWidget):
             'date_end': self.date_end_widget.date().toString('dd/MM/yyyy')
             }
 
-    def get_dataset_names(self):
-        """
-        Return a list of the names of the dataset that are loaded in
-        memory and listed in the target station dropdown menu.
-        """
-        return [self.target_station.itemText(i) for i in
-                range(self.target_station.count())]
-
     def _handle_gapfill_btn_clicked(self):
         """
         Handle when the user clicked on the gapfill button.
         """
-        if self.gapfill_worker.wxdatasets.count() == 0:
+        if self.gapfill_manager.count() == 0:
             QMessageBox.warning(
                 self, 'Warning', "There is no data to fill.", QMessageBox.Ok)
             return
@@ -463,7 +480,27 @@ class WeatherDataGapfiller(QWidget):
                 QMessageBox.Ok)
             return
 
-        # Disable GUI and continue the process normally
+        self.start_gapfill_target()
+
+    def _handle_gapfill_target_finished(self):
+        """
+        Method initiated from an automatic return from the gapfilling
+        process in batch mode. Iterate over the station list and continue
+        process normally.
+        """
+        self.btn_fill.setIcon(get_icon('fill_data'))
+        self.btn_fill.setEnabled(True)
+
+        self.target_widget.setEnabled(True)
+        self.fillDates_widg.setEnabled(True)
+        self._regression_model_groupbox.setEnabled(True)
+        self._station_selection_groupbox.setEnabled(True)
+        self.progressbar.setValue(0)
+        QApplication.processEvents()
+        self.progressbar.hide()
+
+    def start_gapfill_target(self):
+        # Update the gui.
         self.btn_fill.setEnabled(False)
         self.fillDates_widg.setEnabled(False)
         self.target_widget.setEnabled(False)
@@ -471,68 +508,16 @@ class WeatherDataGapfiller(QWidget):
         self._station_selection_groupbox.setEnabled(False)
         self.progressbar.show()
 
-        self.isFillAll_inProgress = False
-        sta_indx2fill = self.target_station.currentIndex()
-        self.gap_fill_start(sta_indx2fill)
-
-    def gapfill_worker_return(self, event):
-        """
-        Method initiated from an automatic return from the gapfilling
-        process in batch mode. Iterate over the station list and continue
-        process normally.
-        """
-        self.gapfill_thread.quit()
-        if event:
-            sta_indx2fill = self.target_station.currentIndex() + 1
-            if (self.isFillAll_inProgress is False or
-                    sta_indx2fill == self.gapfill_worker.wxdatasets.count()):
-                # Single fill process completed sucessfully for the current
-                # selected weather station OR Fill All process completed
-                # sucessfully for all the weather stations in the list.
-                self.isFillAll_inProgress = False
-                self.restore_gui()
-            else:
-                self.gap_fill_start(sta_indx2fill)
-        else:
-            print('Gap-filling routine stopped.')
-            # The gapfilling routine was stopped from the UI.
-            self.isFillAll_inProgress = False
-            self.restore_gui()
-
-    def gap_fill_start(self, sta_indx2fill):
-        # Wait for the QThread to finish.
-        waittime = 0
-        while self.gapfill_thread.isRunning():
-            print('Waiting for the fill weather data thread to close ' +
-                  'before processing with the next station.')
-            sleep(0.1)
-            waittime += 0.1
-            if waittime > 15:
-                msg = ('This function is not working as intended.' +
-                       ' Please report a bug.')
-                print(msg)
-                self.ConsoleSignal.emit('<font color=red>%s</font>' % msg)
-                return
-
-        # Update the GUI.
-        self.CORRFLAG = 'off'
-        self.target_station.setCurrentIndex(sta_indx2fill)
-        self.CORRFLAG = 'on'
-
-        # Calculate correlation coefficient for the next station.
-        self.update_corrcoeff()
-
         # Start the gapfill thread.
-        self.gapfill_worker.time_start = datetime_from_qdatedit(
-            self.date_start_widget)
-        self.gapfill_worker.time_end = datetime_from_qdatedit(
-            self.date_end_widget)
-        self.gapfill_worker.NSTAmax = self.Nmax.value()
-        self.gapfill_worker.limitDist = self.distlimit.value()
-        self.gapfill_worker.limitAlt = self.altlimit.value()
-        self.gapfill_worker.regression_mode = self.RMSE_regression.isChecked()
-
-        self.gapfill_thread.start()
+        self.gapfill_manager.gapfill_data(
+            time_start=datetime_from_qdatedit(self.date_start_widget),
+            time_end=datetime_from_qdatedit(self.date_end_widget),
+            max_neighbors=self.Nmax.value(),
+            hdist_limit=self.distlimit.value(),
+            vdist_limit=self.altlimit.value(),
+            regression_mode=self.RMSE_regression.isChecked(),
+            callback=self._handle_gapfill_target_finished
+            )
 
     def close(self):
         CONF.set('gapfill_data', 'nbr_of_station', self.Nmax.value())
