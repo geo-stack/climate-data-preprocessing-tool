@@ -99,9 +99,9 @@ class WeatherStationDownloader(QMainWindow):
     PROV_NAME = [x[0].title() for x in PROV_NAME_ABB]
     PROV_ABB = [x[1] for x in PROV_NAME_ABB]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, workdir=None):
         super().__init__(parent)
-        self.workdir = get_home_dir()
+        self.workdir = workdir or get_home_dir()
 
         self.stn_finder_worker = WeatherStationFinder()
         self.stn_finder_worker.sig_load_database_finished.connect(
