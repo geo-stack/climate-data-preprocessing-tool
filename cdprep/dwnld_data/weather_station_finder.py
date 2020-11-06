@@ -133,13 +133,13 @@ class WeatherStationFinder(QObject):
         stationdata = self._data.copy()
         if prov:
             stationdata = stationdata[stationdata['Province'].isin(prov)]
-        if prox:
+        if prox and not stationdata.empty:
             lat1, lon1, max_dist = prox
             lat2 = stationdata['Latitude (Decimal Degrees)'].values
             lon2 = stationdata['Longitude (Decimal Degrees)'].values
             dists = calc_dist_from_coord(lat1, lon1, lat2, lon2)
             stationdata = stationdata[dists <= max_dist]
-        if yrange:
+        if yrange and not stationdata.empty:
             arr_ymin = stationdata['DLY First Year'].apply(
                 lambda x: max(x, yrange[0]))
             arr_ymax = stationdata['DLY Last Year'].apply(
