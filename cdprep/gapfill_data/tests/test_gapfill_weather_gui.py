@@ -66,6 +66,9 @@ def datagapfiller(qtbot, mocker, conf):
     qtbot.addWidget(datagapfiller)
     datagapfiller.show()
     qtbot.waitForWindowShown(datagapfiller)
+
+    assert datagapfiller.Nmax.minimum() == 1
+
     return datagapfiller
 
 
