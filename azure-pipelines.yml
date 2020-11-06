@@ -10,7 +10,7 @@ trigger:
 variables:
   AZURE: True
   CODECOV_TOKEN: "53ed8bd6-fe08-4b52-a76d-733bf67bc574"
-  CDPREP_OUTPUT_DIRNAME: 'cdprep_0.1.1_win_amd64'
+  CDPREP_OUTPUT_DIRNAME: 'cdprep_0.1.2_win_amd64'
 
 pool:
   vmImage: 'windows-2019'
