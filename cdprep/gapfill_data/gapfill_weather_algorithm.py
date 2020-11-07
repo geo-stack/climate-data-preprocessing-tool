@@ -239,9 +239,6 @@ class DataGapfillWorker(WorkerBase):
                   "for target station {}.".format(station_name))
             self.sig_status_message.emit('')
 
-    def read_summary(self):
-        return self.WEATHER.read_summary(self.outputdir)
-
     def get_valid_neighboring_stations(self, hdist_limit, vdist_limit):
         """
         Return the list of neighboring stations that are within the
