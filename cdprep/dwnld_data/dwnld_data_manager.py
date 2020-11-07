@@ -26,9 +26,11 @@ from PyQt5.QtCore import Qt, QThread, QSize, QObject
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QDoubleSpinBox, QComboBox, QFrame, QGridLayout, QSpinBox,
     QPushButton, QApplication, QFileDialog, QGroupBox, QStyle, QMessageBox,
-    QProgressBar)
+    QProgressBar, QMainWindow)
 
 # ---- Local imports
+from cdprep.utils.qthelpers import (
+    qbytearray_to_hexstate, hexstate_to_qbytearray)
 from cdprep.config.main import CONF
 from cdprep.config.icons import get_icon, get_iconsize
 from cdprep.widgets.waitingspinner import QWaitingSpinner
@@ -86,7 +88,7 @@ class WaitSpinnerBar(QWidget):
         self._spinner.stop()
 
 
-class WeatherStationDownloader(QWidget):
+class WeatherStationDownloader(QMainWindow):
     """
     Widget that allows the user to browse and select ECCC climate stations.
     """
@@ -97,9 +99,9 @@ class WeatherStationDownloader(QWidget):
     PROV_NAME = [x[0].title() for x in PROV_NAME_ABB]
     PROV_ABB = [x[1] for x in PROV_NAME_ABB]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, workdir=None):
         super().__init__(parent)
-        self.workdir = get_home_dir()
+        self.workdir = workdir or get_home_dir()
 
         self.stn_finder_worker = WeatherStationFinder()
         self.stn_finder_worker.sig_load_database_finished.connect(
@@ -112,7 +114,9 @@ class WeatherStationDownloader(QWidget):
         self.waitspinnerbar = WaitSpinnerBar()
         self.stn_finder_worker.sig_progress_msg.connect(
             self.waitspinnerbar.set_label)
+
         self.__initUI__()
+        self._restore_window_geometry()
 
         # Setup the raw data downloader.
         self._dwnld_inprogress = False
@@ -126,7 +130,6 @@ class WeatherStationDownloader(QWidget):
         self.dwnld_worker.sig_update_pbar.connect(self.progressbar.setValue)
 
         self.start_load_database()
-        self.resize(600, 500)
 
     def __initUI__(self):
         self.setWindowTitle('Download Weather Data')
@@ -139,6 +142,7 @@ class WeatherStationDownloader(QWidget):
         self.lat_spinBox = QDoubleSpinBox()
         self.lat_spinBox.setAlignment(Qt.AlignCenter)
         self.lat_spinBox.setSingleStep(0.1)
+        self.lat_spinBox.setDecimals(3)
         self.lat_spinBox.setValue(CONF.get('download_data', 'latitude', 0))
         self.lat_spinBox.setMinimum(0)
         self.lat_spinBox.setMaximum(180)
@@ -148,6 +152,7 @@ class WeatherStationDownloader(QWidget):
         self.lon_spinBox = QDoubleSpinBox()
         self.lon_spinBox.setAlignment(Qt.AlignCenter)
         self.lon_spinBox.setSingleStep(0.1)
+        self.lon_spinBox.setDecimals(3)
         self.lon_spinBox.setValue(CONF.get('download_data', 'longitude', 0))
         self.lon_spinBox.setMinimum(0)
         self.lon_spinBox.setMaximum(180)
@@ -311,14 +316,17 @@ class WeatherStationDownloader(QWidget):
         self.progressbar.setValue(0)
         self.progressbar.hide()
 
-        # Create the main grid.
-        main_layout = QGridLayout(self)
+        # Setup the central widget.
+        main_widget = QWidget()
+        main_layout = QGridLayout(main_widget)
         main_layout.addWidget(self.left_panel, 0, 0)
         main_layout.addWidget(self.station_table, 0, 1)
         main_layout.addWidget(self.waitspinnerbar, 0, 1)
         main_layout.addWidget(toolbar_widg, 1, 0, 1, 2)
         main_layout.addWidget(self.progressbar, 2, 0, 1, 2)
         main_layout.setColumnStretch(1, 100)
+
+        self.setCentralWidget(main_widget)
 
     @property
     def stationlist(self):
@@ -647,8 +655,30 @@ class WeatherStationDownloader(QWidget):
                 writer.writerows(fcontent)
         self.download_next_station()
 
+    # ---- Main window settings
+    def _restore_window_geometry(self):
+        """
+        Restore the geometry of this mainwindow from the value saved
+        in the config.
+        """
+        hexstate = CONF.get('download_data', 'window/geometry', None)
+        if hexstate:
+            hexstate = hexstate_to_qbytearray(hexstate)
+            self.restoreGeometry(hexstate)
+        else:
+            self.resize(1000, 450)
+
+    def _save_window_geometry(self):
+        """
+        Save the geometry of this mainwindow to the config.
+        """
+        hexstate = qbytearray_to_hexstate(self.saveGeometry())
+        CONF.set('download_data', 'window/geometry', hexstate)
+
     # ---- Qt overrides
     def closeEvent(self, event):
+        self._save_window_geometry()
+
         # Proximity Filter Options.
         CONF.set('download_data', 'proximity_filter',
                  self.prox_grpbox.isChecked())

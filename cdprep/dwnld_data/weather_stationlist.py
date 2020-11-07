@@ -120,7 +120,7 @@ class WeatherSationView(QTableView):
         super(WeatherSationView, self).__init__()
         self.setShowGrid(False)
         self.setAlternatingRowColors(True)
-        self.setMinimumWidth(650)
+        self.setMinimumWidth(350)
         self.setSortingEnabled(True)
 
         self.chkbox_header = QCheckBox(self.horizontalHeader())
@@ -144,9 +144,9 @@ class WeatherSationView(QTableView):
         self.setColumnWidth(
             6, self.fontMetrics().width('504K0NM') + margin)
         self.setColumnHidden(7, True)
-        self.setColumnHidden(8, True)
-        self.setColumnHidden(9, True)
-        self.setColumnHidden(10, True)
+        self.setColumnWidth(8, self.fontMetrics().width('-77.77') + margin)
+        self.setColumnWidth(9, self.fontMetrics().width('-77.77') + margin)
+        self.setColumnWidth(10, self.fontMetrics().width('-77.77') + margin)
 
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
