@@ -31,9 +31,7 @@ from cdprep.config.gui import RED, LIGHTGRAY
 from cdprep.gapfill_data.read_weather_data import read_weather_datafile
 from cdprep import __namever__
 
-PRECIP_VARIABLES = ['Ptot']
-TEMP_VARIABLES = ['Tmax', 'Tavg', 'Tmin']
-VARNAMES = PRECIP_VARIABLES + TEMP_VARIABLES
+VARNAMES = ['Ptot', 'Tmax', 'Tavg', 'Tmin']
 
 
 class DataGapfillManager(TaskManagerBase):
