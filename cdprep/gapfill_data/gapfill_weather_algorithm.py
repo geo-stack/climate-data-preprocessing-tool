@@ -913,10 +913,7 @@ class WeatherData(QObject):
 
                 # Append the data of this station to that of the others.
                 for name in VARNAMES:
-                    self.data[name] = self.data[name].join(
-                        sta_data[[name]].rename(columns={name: sta_id}),
-                        how='outer')
-                    self.data[name] = self.data[name].join(
+                    self.data[name] = self.data[name].merge(
                         sta_data[[name]].rename(columns={name: sta_id}),
                         left_index=True,
                         right_index=True,
