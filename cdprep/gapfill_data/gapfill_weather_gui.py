@@ -396,7 +396,9 @@ class WeatherDataGapfiller(QMainWindow):
         station_names = self.gapfill_manager.get_station_names()
         station_ids = self.gapfill_manager.get_station_ids()
         for station_name, station_id in zip(station_names, station_ids):
-            self.target_station.addItem(station_name, userData=station_id)
+            self.target_station.addItem(
+                '{} ({})'.format(station_name, station_id),
+                userData=station_id)
         self.target_station.blockSignals(False)
 
         self.sta_display_summary.setHtml(
