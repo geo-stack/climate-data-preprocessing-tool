@@ -375,13 +375,13 @@ class WeatherDataGapfiller(QMainWindow):
         self._loading_data_inprogress = True
         self.left_panel.setEnabled(False)
         self.right_panel.setEnabled(False)
-            force_reload=force_reload,
 
         self.corrcoeff_textedit.setText('')
         self.target_station_info.setText('')
         self.target_station.clear()
 
         self.gapfill_manager.load_data(
+            force_reload=force_reload,
             callback=self._handle_data_dir_content_loaded)
 
     def _handle_data_dir_content_loaded(self):
