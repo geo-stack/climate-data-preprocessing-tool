@@ -83,7 +83,8 @@ class WeatherDataGapfiller(QMainWindow):
             'Force the reloading of the weather data files')
         self.btn_refresh_staList.setIconSize(get_iconsize('small'))
         self.btn_refresh_staList.setAutoRaise(True)
-        self.btn_refresh_staList.clicked.connect(self.load_data_dir_content)
+        self.btn_refresh_staList.clicked.connect(
+            lambda: self.load_data_dir_content(force_reload=True))
 
         self.btn_delete_data = QToolButton()
         self.btn_delete_data.setIcon(get_icon('delete_data'))
@@ -366,7 +367,7 @@ class WeatherDataGapfiller(QMainWindow):
             self.target_station_info.setText(target_info)
 
     # ---- Load Data
-    def load_data_dir_content(self):
+    def load_data_dir_content(self, force_reload=False):
         """
         Load weater data from valid files contained in the working directory.
         """
@@ -374,7 +375,7 @@ class WeatherDataGapfiller(QMainWindow):
         self._loading_data_inprogress = True
         self.left_panel.setEnabled(False)
         self.right_panel.setEnabled(False)
-        self.progressbar.show()
+            force_reload=force_reload,
 
         self.corrcoeff_textedit.setText('')
         self.target_station_info.setText('')
