@@ -83,7 +83,8 @@ class WeatherDataGapfiller(QMainWindow):
             'Force the reloading of the weather data files')
         self.btn_refresh_staList.setIconSize(get_iconsize('small'))
         self.btn_refresh_staList.setAutoRaise(True)
-        self.btn_refresh_staList.clicked.connect(self.load_data_dir_content)
+        self.btn_refresh_staList.clicked.connect(
+            lambda: self.load_data_dir_content(force_reload=True))
 
         self.btn_delete_data = QToolButton()
         self.btn_delete_data.setIcon(get_icon('delete_data'))
@@ -366,7 +367,7 @@ class WeatherDataGapfiller(QMainWindow):
             self.target_station_info.setText(target_info)
 
     # ---- Load Data
-    def load_data_dir_content(self):
+    def load_data_dir_content(self, force_reload=False):
         """
         Load weater data from valid files contained in the working directory.
         """
@@ -374,13 +375,13 @@ class WeatherDataGapfiller(QMainWindow):
         self._loading_data_inprogress = True
         self.left_panel.setEnabled(False)
         self.right_panel.setEnabled(False)
-        self.progressbar.show()
 
         self.corrcoeff_textedit.setText('')
         self.target_station_info.setText('')
         self.target_station.clear()
 
         self.gapfill_manager.load_data(
+            force_reload=force_reload,
             callback=self._handle_data_dir_content_loaded)
 
     def _handle_data_dir_content_loaded(self):
@@ -390,14 +391,14 @@ class WeatherDataGapfiller(QMainWindow):
         """
         self.left_panel.setEnabled(True)
         self.right_panel.setEnabled(True)
-        self.progressbar.hide()
-        self.progressbar.setValue(0)
 
         self.target_station.blockSignals(True)
         station_names = self.gapfill_manager.get_station_names()
         station_ids = self.gapfill_manager.get_station_ids()
         for station_name, station_id in zip(station_names, station_ids):
-            self.target_station.addItem(station_name, userData=station_id)
+            self.target_station.addItem(
+                '{} ({})'.format(station_name, station_id),
+                userData=station_id)
         self.target_station.blockSignals(False)
 
         self.sta_display_summary.setHtml(
