@@ -83,9 +83,13 @@ class DataGapfillManager(TaskManagerBase):
         if not postpone_exec:
             self.run_tasks()
 
-    def load_data(self, callback=None, postpone_exec=False):
+    def load_data(self, force_reload=False, callback=None,
+                  postpone_exec=False):
         """Read the csv files in the input data directory folder."""
-        self.add_task('load_data', callback=callback)
+        self.add_task(
+            'load_data',
+            force_reload=force_reload,
+            callback=callback)
         if not postpone_exec:
             self.run_tasks()
 
@@ -136,6 +140,8 @@ class DataGapfillWorker(WorkerBase):
 
         self.WEATHER = self.wxdatasets = WeatherData()
         self.wxdatasets.sig_task_progress.connect(self.sig_task_progress.emit)
+        self.wxdatasets.sig_status_message.connect(
+            self.sig_status_message.emit)
 
         self.inputDir = None
         self.isParamsValid = False
@@ -175,17 +181,71 @@ class DataGapfillWorker(WorkerBase):
                              ' with a value greater than 0.')
         self.__NSTAmax = x
 
-    def load_data(self):
+    def load_data(self, force_reload=False):
         """
         Read the csv files in the input data directory folder.
+
+        The resulting formatted dataset is saved in a structured numpy array
+        in binary format, so that loading time is improved on subsequent runs.
+        Some checks are made to be sure the binary match with the current
+        data files in the folder.
         """
-        if not self.inputDir:
+        self.target = None
+        self.alt_and_dist = None
+        self.corcoef = None
+
+        if self.inputDir is None:
             print('Please specify a valid input data file directory.')
             return
         if not osp.exists(self.inputDir):
-            print('Data Directory path does not exists.')
+            print('Input data directory does not exists.')
             return
+        if force_reload is True:
+            print('Force reloading data from csv file...')
+            return self._reload_data()
 
+        # Check if a cached binary file exists.
+        binfile = os.path.join(self.inputDir, '__cache__', 'fdata.npy')
+        if not osp.exists(binfile):
+            return self._reload_data()
+
+        # Try to load data from the cached binary file.
+        try:
+            self.wxdatasets.load_from_binary(self.inputDir)
+        except Exception as e:
+            print('Failed to load data from cache because '
+                  'of the following error:')
+            print(e)
+            return self._reload_data()
+        else:
+            # Scan input folder for changes
+
+            # If one of the csv data file contained within the input data
+            # directory has changed since last time the binary file was
+            # created, the data will be reloaded from the csv files and a
+            # new binary file will be generated.
+
+            filenames = [osp.basename(f) for f in self.wxdatasets.filenames]
+            bmtime = osp.getmtime(binfile)
+            count = 0
+            for f in os.listdir(self.inputDir):
+                if f.endswith('.csv'):
+                    fmtime = osp.getmtime(osp.join(self.inputDir, f))
+                    if f in filenames and fmtime <= bmtime:
+                        count += 1
+            if len(filenames) != count:
+                print('One or more input data files in the workind '
+                      'directory changed since the last time the data '
+                      'were cached.')
+                return self._reload_data()
+            else:
+                print('Data loaded from cache.')
+
+    def _reload_data(self):
+        """
+        Read the csv files in the input data directory folder, format
+        the datasets and save the results in a binary file.
+        """
         filepaths = [
             osp.join(self.inputDir, f) for
             f in os.listdir(self.inputDir) if f.endswith('.csv')]
@@ -195,10 +255,10 @@ class DataGapfillWorker(WorkerBase):
         message = 'Reading data from csv files...'
         print(message)
         self.sig_status_message.emit(message)
-        self.target = None
-        self.alt_and_dist = None
-        self.corcoef = None
+
         self.wxdatasets.load_and_format_data(filepaths)
+        self.wxdatasets.save_to_binary(self.inputDir)
+
         print('Data loaded successfully.')
         self.sig_status_message.emit('')
 
@@ -766,21 +826,23 @@ class WeatherData(QObject):
     *GapFillWeather* class.
     """
     sig_task_progress = QSignal(int)
+    sig_status_message = QSignal(str)
 
     def __init__(self):
         super().__init__()
 
         self.data = None
         self.metadata = None
-        self.fnames = []
 
     @property
     def filenames(self):
         """
         Return the list of file paths from which data were loaded.
         """
-        return (self.metadata['filename'].tolist() if
-                self.metadata is not None else [])
+        if self.metadata is None or self.metadata.empty:
+            return []
+        else:
+            return self.metadata['filename'].tolist()
 
     @property
     def station_names(self):
@@ -813,6 +875,7 @@ class WeatherData(QObject):
         """
         return len(self.station_ids)
 
+    # ---- Load and format data.
     def load_and_format_data(self, paths):
         """
         Parameters
@@ -820,7 +883,7 @@ class WeatherData(QObject):
         paths: list
             A list of absolute paths containing daily weater data files
         """
-        self.fnames = [osp.basename(path) for path in paths]
+        self.sig_status_message.emit('Reading data from csv files... 0%')
         self.data = {var: pd.DataFrame([]) for var in VARNAMES}
         self.metadata = pd.DataFrame([])
         if len(paths) == 0:
@@ -850,13 +913,19 @@ class WeatherData(QObject):
 
                 # Append the data of this station to that of the others.
                 for name in VARNAMES:
-                    self.data[name] = self.data[name].merge(
+                    self.data[name] = self.data[name].join(
+                        sta_data[[name]].rename(columns={name: sta_id}),
+                        how='outer')
+                    self.data[name] = self.data[name].join(
                         sta_data[[name]].rename(columns={name: sta_id}),
                         left_index=True,
                         right_index=True,
                         how='outer')
-            self.sig_task_progress.emit(int(
-                i / len(paths) * 100))
+            percent_progress = int(i / len(paths) * 100)
+            self.sig_task_progress.emit(percent_progress)
+            self.sig_status_message.emit(
+                'Reading data from csv files... {:d}%'.format(
+                    percent_progress))
 
         # Make the daily time series continuous.
         for name in VARNAMES:
