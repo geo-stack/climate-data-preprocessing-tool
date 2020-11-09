@@ -883,12 +883,12 @@ class WeatherData(QObject):
         paths: list
             A list of absolute paths containing daily weater data files
         """
-        self.sig_status_message.emit('Reading data from csv files... 0%')
         self.data = {var: pd.DataFrame([]) for var in VARNAMES}
         self.metadata = pd.DataFrame([])
         if len(paths) == 0:
             return
 
+        self.sig_status_message.emit('Reading data from csv files... 0%')
         for i, path in enumerate(paths):
             try:
                 sta_metadata, sta_data = read_weather_datafile(path)
