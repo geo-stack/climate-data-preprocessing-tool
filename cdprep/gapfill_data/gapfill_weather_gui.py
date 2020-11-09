@@ -390,8 +390,6 @@ class WeatherDataGapfiller(QMainWindow):
         """
         self.left_panel.setEnabled(True)
         self.right_panel.setEnabled(True)
-        self.progressbar.hide()
-        self.progressbar.setValue(0)
 
         self.target_station.blockSignals(True)
         station_names = self.gapfill_manager.get_station_names()
