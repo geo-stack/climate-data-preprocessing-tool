@@ -865,6 +865,21 @@ class WeatherData(QObject):
         # Set the index of the metadata.
         self.metadata = self.metadata.set_index('Station ID', drop=True)
 
+    def load_from_binary(self, dirname):
+        """Load the data and metadata from binary files."""
+        A = np.load(
+            osp.join(dirname, '__cache__', 'fdata.npy'),
+            allow_pickle=True
+            ).item()
+        self.data = A['data']
+        self.metadata = A['metadata']
+
+    def save_to_binary(self, dirname):
+        """Save the data and metadata to binary files."""
+        os.makedirs(osp.join(dirname, '__cache__'), exist_ok=True)
+        A = {'data': self.data, 'metadata': self.metadata}
+        np.save(osp.join(dirname, '__cache__', 'fdata.npy'), A)
+
     # ---- Utilities
     def alt_and_dist_calc(self, target_station_id):
         """
