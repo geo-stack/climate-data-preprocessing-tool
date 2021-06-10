@@ -73,7 +73,7 @@ class WeatherStationFinder(QObject):
     def load_database(self):
         """
         Load the climate station list from a file if it exist or else fetch it
-        from ECCC Tor ftp server.
+        from ECCC remote location.
         """
         if osp.exists(DATABASE_FILEPATH):
             message = "Loading the climate station database from file."
@@ -111,9 +111,9 @@ class WeatherStationFinder(QObject):
     def fetch_database(self):
         """
         Fetch and read the list of climate stations with daily data
-        from the ECCC Tor ftp server and save the result on disk.
+        from the ECCC remote location and save the result on disk.
         """
-        message = "Fetching station list from ECCC Tor ftp server..."
+        message = "Fetching station list from ECCC remote location..."
         print(message)
         self.sig_progress_msg.emit(message)
 
@@ -121,9 +121,9 @@ class WeatherStationFinder(QObject):
         self._data = None
         for i in range(MAX_FAILED_FETCH_TRY):
             if fetch_stationlist_from_remote() is False:
-                print("Failed to fetch the database from "
-                      " the ECCC server (%d/%d)."
-                      % (i + 1, MAX_FAILED_FETCH_TRY))
+                print("Failed to fetch the list of stations from the "
+                      "ECCC remote location ({}/{})."
+                      .format(i + 1, MAX_FAILED_FETCH_TRY))
                 time.sleep(3)
             else:
                 te = time.time()
@@ -132,7 +132,8 @@ class WeatherStationFinder(QObject):
                 self.load_database()
                 break
         else:
-            message = "Failed to fetch the database from the ECCC server."
+            message = ("Failed to fetch the list of stations from the "
+                       "ECCC remote location.")
             print(message)
             self.sig_progress_msg.emit(message)
             self.sig_load_database_finished.emit(False)
