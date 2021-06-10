@@ -64,7 +64,7 @@ class WeatherDataGapfiller(QMainWindow):
 
         widget_toolbar = QFrame()
         grid_toolbar = QGridLayout(widget_toolbar)
-        grid_toolbar.addWidget(self.btn_fill, 0, 1)
+        grid_toolbar.addWidget(self.btn_fill, 0, 0)
         grid_toolbar.setContentsMargins(0, 0, 0, 0)
         grid_toolbar.setColumnStretch(0, 100)
 
