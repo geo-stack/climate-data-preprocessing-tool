@@ -12,6 +12,7 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 import time
 import os.path as osp
+from shutil import copyfile
 
 # ---- Third party imports
 import gdown
@@ -21,6 +22,7 @@ from PyQt5.QtCore import pyqtSignal as QSignal
 
 
 # ---- Local imports
+from cdprep import __rootdir__
 from cdprep.config.main import CONFIG_DIR
 from cdprep.utils.maths import calc_dist_from_coord
 from cdprep.dwnld_data.weather_stationlist import WeatherSationList
@@ -96,7 +98,15 @@ class WeatherStationFinder(QObject):
 
             self.sig_load_database_finished.emit(True)
         else:
-            self.fetch_database()
+            # Copy station inventory csv file from the ressources folder to
+            # the user config folder.
+            sta_inventory_filename = osp.join(
+                __rootdir__, 'ressources', 'Station Inventory EN.csv')
+            if osp.exists(sta_inventory_filename):
+                copyfile(sta_inventory_filename, DATABASE_FILEPATH)
+                self.load_database()
+            else:
+                self.fetch_database()
 
     def fetch_database(self):
         """
