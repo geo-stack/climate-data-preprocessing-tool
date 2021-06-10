@@ -14,6 +14,7 @@ import time
 import os.path as osp
 
 # ---- Third party imports
+import gdown
 import pandas as pd
 from PyQt5.QtCore import QObject
 from PyQt5.QtCore import pyqtSignal as QSignal
@@ -39,17 +40,18 @@ PROV_NAME_ABB = [('ALBERTA', 'AB'),
                  ('YUKON TERRITORY', 'YT')]
 DATABASE_FILEPATH = osp.join(CONFIG_DIR, 'Station Inventory EN.csv')
 MAX_FAILED_FETCH_TRY = 3
-URL_TOR = ("ftp://client_climate@ftp.tor.ec.gc.ca/" +
-           "Pub/Get_More_Data_Plus_de_donnees/Station%20Inventory%20EN.csv")
 
 
-def fetch_stationlist_from_tor():
-    """"Read and format the `Station Inventory En.csv` file from Tor ftp."""
+def fetch_stationlist_from_remote():
+    url = 'https://drive.google.com/uc?id=1egfzGgzUb0RFu_EE5AYFZtsyXPfZ11y2'
+    output = DATABASE_FILEPATH
     try:
-        with open(DATABASE_FILEPATH, 'wb') as local_file:
-            local_file.write(urlopen(URL_TOR).read())
+        gdown.download(url, output, quiet=True)
         return True
-    except (HTTPError, URLError):
+    except Exception as e:
+        print("Failed to download 'Station Inventory EN.csv' "
+              "because of the following error:")
+        print(e)
         return False
 
 
@@ -108,7 +110,7 @@ class WeatherStationFinder(QObject):
         ts = time.time()
         self._data = None
         for i in range(MAX_FAILED_FETCH_TRY):
-            if fetch_stationlist_from_tor() is False:
+            if fetch_stationlist_from_remote() is False:
                 print("Failed to fetch the database from "
                       " the ECCC server (%d/%d)."
                       % (i + 1, MAX_FAILED_FETCH_TRY))
