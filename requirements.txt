@@ -1,4 +1,5 @@
 appconfigs
+gdown
 pyqt5 == 5.12.*
 qtawesome == 0.7.*
 xlsxwriter

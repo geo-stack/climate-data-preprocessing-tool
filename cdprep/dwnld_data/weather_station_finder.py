@@ -12,14 +12,17 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 import time
 import os.path as osp
+from shutil import copyfile
 
 # ---- Third party imports
+import gdown
 import pandas as pd
 from PyQt5.QtCore import QObject
 from PyQt5.QtCore import pyqtSignal as QSignal
 
 
 # ---- Local imports
+from cdprep import __rootdir__
 from cdprep.config.main import CONFIG_DIR
 from cdprep.utils.maths import calc_dist_from_coord
 from cdprep.dwnld_data.weather_stationlist import WeatherSationList
@@ -39,17 +42,18 @@ PROV_NAME_ABB = [('ALBERTA', 'AB'),
                  ('YUKON TERRITORY', 'YT')]
 DATABASE_FILEPATH = osp.join(CONFIG_DIR, 'Station Inventory EN.csv')
 MAX_FAILED_FETCH_TRY = 3
-URL_TOR = ("ftp://client_climate@ftp.tor.ec.gc.ca/" +
-           "Pub/Get_More_Data_Plus_de_donnees/Station%20Inventory%20EN.csv")
 
 
-def fetch_stationlist_from_tor():
-    """"Read and format the `Station Inventory En.csv` file from Tor ftp."""
+def fetch_stationlist_from_remote():
+    url = 'https://drive.google.com/uc?id=1egfzGgzUb0RFu_EE5AYFZtsyXPfZ11y2'
+    output = DATABASE_FILEPATH
     try:
-        with open(DATABASE_FILEPATH, 'wb') as local_file:
-            local_file.write(urlopen(URL_TOR).read())
+        gdown.download(url, output, quiet=True)
         return True
-    except (HTTPError, URLError):
+    except Exception as e:
+        print("Failed to download 'Station Inventory EN.csv' "
+              "because of the following error:")
+        print(e)
         return False
 
 
@@ -69,7 +73,7 @@ class WeatherStationFinder(QObject):
     def load_database(self):
         """
         Load the climate station list from a file if it exist or else fetch it
-        from ECCC Tor ftp server.
+        from ECCC remote location.
         """
         if osp.exists(DATABASE_FILEPATH):
             message = "Loading the climate station database from file."
@@ -94,24 +98,32 @@ class WeatherStationFinder(QObject):
 
             self.sig_load_database_finished.emit(True)
         else:
-            self.fetch_database()
+            # Copy station inventory csv file from the ressources folder to
+            # the user config folder.
+            sta_inventory_filename = osp.join(
+                __rootdir__, 'ressources', 'Station Inventory EN.csv')
+            if osp.exists(sta_inventory_filename):
+                copyfile(sta_inventory_filename, DATABASE_FILEPATH)
+                self.load_database()
+            else:
+                self.fetch_database()
 
     def fetch_database(self):
         """
         Fetch and read the list of climate stations with daily data
-        from the ECCC Tor ftp server and save the result on disk.
+        from the ECCC remote location and save the result on disk.
         """
-        message = "Fetching station list from ECCC Tor ftp server..."
+        message = "Fetching station list from ECCC remote location..."
         print(message)
         self.sig_progress_msg.emit(message)
 
         ts = time.time()
         self._data = None
         for i in range(MAX_FAILED_FETCH_TRY):
-            if fetch_stationlist_from_tor() is False:
-                print("Failed to fetch the database from "
-                      " the ECCC server (%d/%d)."
-                      % (i + 1, MAX_FAILED_FETCH_TRY))
+            if fetch_stationlist_from_remote() is False:
+                print("Failed to fetch the list of stations from the "
+                      "ECCC remote location ({}/{})."
+                      .format(i + 1, MAX_FAILED_FETCH_TRY))
                 time.sleep(3)
             else:
                 te = time.time()
@@ -120,7 +132,8 @@ class WeatherStationFinder(QObject):
                 self.load_database()
                 break
         else:
-            message = "Failed to fetch the database from the ECCC server."
+            message = ("Failed to fetch the list of stations from the "
+                       "ECCC remote location.")
             print(message)
             self.sig_progress_msg.emit(message)
             self.sig_load_database_finished.emit(False)

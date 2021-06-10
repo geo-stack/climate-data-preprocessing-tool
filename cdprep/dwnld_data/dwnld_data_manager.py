@@ -286,8 +286,8 @@ class WeatherStationDownloader(QMainWindow):
 
         self.btn_fetch = btn_fetch = QPushButton('Refresh')
         btn_fetch.setToolTip(
-            "Update the list of climate stations by fetching it again from "
-            "the ECCC ftp server.")
+            "Update the list of climate stations by fetching it from "
+            "the ECCC remote location.")
         btn_fetch.clicked.connect(self.btn_fetch_isClicked)
 
         toolbar_widg = QWidget()
