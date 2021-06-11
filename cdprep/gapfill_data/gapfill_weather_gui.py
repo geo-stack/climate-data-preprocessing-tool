@@ -338,6 +338,7 @@ class WeatherDataGapfiller(QMainWindow):
                 self._pending_corrcoeff_update = station_id
             else:
                 self._corrcoeff_update_inprogress = True
+                self.corrcoeff_textedit.setText('')
                 self.gapfill_manager.set_target_station(
                     station_id, callback=self._handle_corrcoeff_updated)
 
