@@ -22,7 +22,8 @@ def main():
     Run pytest tests.
     """
     errno = pytest.main(['-x', 'cdprep', '-v', '-rw', '--durations=10',
-                         '--cov=cdprep', '-o', 'junit_family=xunit2'])
+                         '--cov=cdprep', '-o', 'junit_family=xunit2',
+                         '--no-coverage-upload'])
     if errno != 0:
         raise SystemExit(errno)
 
