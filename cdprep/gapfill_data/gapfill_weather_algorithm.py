@@ -833,6 +833,7 @@ class WeatherData(QObject):
 
         self.data = None
         self.metadata = None
+        self._corrcoef = None
 
     @property
     def filenames(self):
@@ -885,6 +886,7 @@ class WeatherData(QObject):
         """
         self.data = {var: pd.DataFrame([]) for var in VARNAMES}
         self.metadata = pd.DataFrame([])
+        self._corrcoef = None
         if len(paths) == 0:
             return
 
@@ -974,14 +976,26 @@ class WeatherData(QObject):
         Compute the correlation coefficients between the target
         station and the neighboring stations for each meteorological variable.
         """
+        if self._corrcoef is None:
+            message = "Calculating correlation coefficients..."
+            print(message)
+            self.sig_status_message.emit(message)
+            self._corrcoef = {}
+            for var in VARNAMES:
+                self._corrcoef[var] = (
+                    self.data[var].corr(min_periods=365//2))
+            print("Correlation coefficients calculated sucessfully.")
+            self.sig_status_message.emit('')
+
         correl_target = None
         for var in VARNAMES:
-            corr_matrix = self.data[var].corr(min_periods=365//2).rename(
-                {target_station_id: var}, axis='columns')
+            corr_var_sta = (
+                self._corrcoef[var][[target_station_id]]
+                .rename({target_station_id: var}, axis='columns'))
             if correl_target is None:
-                correl_target = corr_matrix[[var]]
+                correl_target = corr_var_sta
             else:
-                correl_target = correl_target.join(corr_matrix[[var]])
+                correl_target = correl_target.join(corr_var_sta)
         return correl_target
 
     def generate_html_summary_table(self):
