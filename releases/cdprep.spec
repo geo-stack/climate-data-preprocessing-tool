@@ -17,7 +17,7 @@ a = Analysis(['../cdprep/app/mainwindow.py'],
              binaries=[('C:\\Windows\\System32\\vcruntime140_1.dll', '.')],
              datas=added_files ,
              hiddenimports=[
-                 'win32timezone', 'pkg_resources.py2_warn'],
+                 'win32timezone', 'pkg_resources.py2_warn', 'gdown'],
              hookspath=[],
              runtime_hooks=[],
              excludes=['PySide', 'PyQt4'],
