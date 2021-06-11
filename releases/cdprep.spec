@@ -7,15 +7,18 @@ from cdprep.utils.ospath import delete_folder_recursively
 
 block_cipher = None
 
-added_files = [('../cdprep/ressources/icons/*.png', 'ressources/icons'),
-               ('../cdprep/ressources/icons/*.svg', 'ressources/icons')]
+added_files = [
+    ('../cdprep/ressources/icons/*.png', 'ressources/icons'),
+    ('../cdprep/ressources/icons/*.svg', 'ressources/icons'),
+    ('../cdprep/ressources/Station Inventory EN.csv', 'ressources/Station Inventory EN.csv')
+    ]
 a = Analysis(['../cdprep/app/mainwindow.py'],
              pathex=['C:\\Program Files (x86)\\Windows Kits\\10\\Redist\\ucrt\\DLLs\\x64'],
              binaries=[('C:\\Windows\\System32\\vcruntime140_1.dll', '.')],
              datas=added_files ,
              hiddenimports=[
                  'win32timezone', 'pkg_resources.py2_warn'],
-             hookspath=[],
+             hookspath=['hooks'],
              runtime_hooks=[],
              excludes=['PySide', 'PyQt4'],
              win_no_prefer_redirects=False,
