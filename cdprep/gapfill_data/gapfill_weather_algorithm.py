@@ -142,6 +142,8 @@ class DataGapfillWorker(WorkerBase):
         self.wxdatasets.sig_task_progress.connect(self.sig_task_progress.emit)
         self.wxdatasets.sig_status_message.connect(
             self.sig_status_message.emit)
+        self.wxdatasets.sig_corrcoeff_calculated.connect(
+            lambda: self.wxdatasets.save_to_binary(self.inputDir))
 
         self.inputDir = None
         self.isParamsValid = False
@@ -280,22 +282,10 @@ class DataGapfillWorker(WorkerBase):
             raise ValueError("No data currently loaded for station '{}'."
                              .format(station_id))
         else:
-            station_name = self.wxdatasets.metadata.loc[
-                station_id]['Station Name']
-
-            message = ("Calculating correlation coefficients "
-                       "for target station {}...".format(station_name))
-            print(message)
-            self.sig_status_message.emit(message)
-
             self.target = station_id
             self.alt_and_dist = self.wxdatasets.alt_and_dist_calc(station_id)
             self.corcoef = (
                 self.wxdatasets.compute_correlation_coeff(station_id))
-
-            print("Correlation coefficients calculated "
-                  "for target station {}.".format(station_name))
-            self.sig_status_message.emit('')
 
     def get_valid_neighboring_stations(self, hdist_limit, vdist_limit):
         """
@@ -481,6 +471,9 @@ class DataGapfillWorker(WorkerBase):
         gapfilled_data['Day'] = gapfilled_data.index.day.astype(str)
         for varname in VARNAMES:
             gapfilled_data[varname] = gapfilled_data[varname].round(1)
+
+        # Replace nan values by an empty string.
+        gapfilled_data = gapfilled_data.fillna(value='')
 
         # Make sure the columns are in the right order.
         gapfilled_data = gapfilled_data[
@@ -827,6 +820,7 @@ class WeatherData(QObject):
     """
     sig_task_progress = QSignal(int)
     sig_status_message = QSignal(str)
+    sig_corrcoeff_calculated = QSignal()
 
     def __init__(self):
         super().__init__()
@@ -941,12 +935,16 @@ class WeatherData(QObject):
             ).item()
         self.data = A['data']
         self.metadata = A['metadata']
+        self._corrcoef = A.get('corrcoef', None)
 
     def save_to_binary(self, dirname):
         """Save the data and metadata to binary files."""
+        print('Caching data...')
         os.makedirs(osp.join(dirname, '__cache__'), exist_ok=True)
-        A = {'data': self.data, 'metadata': self.metadata}
+        A = {'data': self.data, 'metadata': self.metadata,
+             'corrcoef': self._corrcoef}
         np.save(osp.join(dirname, '__cache__', 'fdata.npy'), A)
+        print('Data cached succesfully.')
 
     # ---- Utilities
     def alt_and_dist_calc(self, target_station_id):
@@ -985,6 +983,7 @@ class WeatherData(QObject):
                 self._corrcoef[var] = (
                     self.data[var].corr(min_periods=365//2))
             print("Correlation coefficients calculated sucessfully.")
+            self.sig_corrcoeff_calculated.emit()
             self.sig_status_message.emit('')
 
         correl_target = None
