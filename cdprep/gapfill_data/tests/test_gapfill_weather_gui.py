@@ -65,7 +65,7 @@ def datagapfiller(qtbot, mocker, conf):
     datagapfiller = WeatherDataGapfiller()
     qtbot.addWidget(datagapfiller)
     datagapfiller.show()
-    qtbot.waitForWindowShown(datagapfiller)
+    qtbot.waitExposed(datagapfiller)
 
     assert datagapfiller.Nmax.minimum() == 1
 
